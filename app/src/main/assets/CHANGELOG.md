@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.3.3
+## 0.3.3 · Stardate 202622.11
 - Captain's Log now uses the same rounded panel as the camera view
 - Text too long for its space slides across instead of being cut off
 - Mission log counts your whole print history, not just the latest 500 jobs
