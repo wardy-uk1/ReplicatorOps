@@ -33,7 +33,7 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 Mapped from the Q2C's own config and Box firmware modules (`box_extras`, `box_stepper`):
 - **Reads (checked live on a Q2C):** `box_extras.boxes[0]` → `aht20_temp`, `aht20_humidity`, `box_target_temp`, `box_inserted_N`, and `filament_info[N]` (`filament_type`, `filament_str`, `color_rgb_str`, `vendor_str`); `box_extras.loaded_slot`. Falls back to `save_variables` (`slotN`, `color_slotN`, `filament_slotN`). Dryer = `heater_generic heater_box1`. Filament ID `QFA00` = QIDI PLA Basic.
 - **Part fan:** QIDI uses `fan_generic cooling_fan`, so the slider sends `SET_FAN_SPEED FAN=cooling_fan`.
-- **Commands:** Load = `M109` to print temperature then `EXTRUDER_LOAD SLOT=slotN`; Unload = `M109` then `EXTRUDER_UNLOAD SLOT=slotN`; Read tag = `SLOT_RFID_READ SLOT=slotN` (N = 0–3). The `slotN` form matches how the firmware names slots, but hasn't been tried on a printer yet — test **Read tag** first.
+- **Commands:** Load = `M109` to print temperature then `EXTRUDER_LOAD SLOT=slotN`; Unload = `M109` then `EXTRUDER_UNLOAD SLOT=slotN`; Read tag = `SLOT_RFID_READ SLOT=slotN` (N = 0–3). All three, plus Edit slot colour write-back, are tested on a Q2C with a QIDI Box.
 - **Edit slot:** the colour is written to the printer with `SAVE_VARIABLE VARIABLE=color_slotN VALUE="['RRGGBB']"`, which is where the Box firmware reads it. The type stays on the phone, because the printer stores QIDI filament codes and the code list isn't on the printer.
 - Config → Diagnostics shows every Box field the printer reports.
 
