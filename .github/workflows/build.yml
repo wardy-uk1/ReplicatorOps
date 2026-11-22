@@ -30,11 +30,17 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --console=plain
 
+      - name: Read app version
+        id: ver
+        run: |
+          v=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+
       - name: Name the APK
         id: apk
         run: |
-          ref="${GITHUB_REF_NAME//\//-}"
-          name="ReplicatorOps-${ref}-debug.apk"
+          name="ReplicatorOps-${{ steps.ver.outputs.version }}-debug.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
@@ -44,9 +50,25 @@ jobs:
           name: ${{ steps.apk.outputs.name }}
           path: ${{ steps.apk.outputs.name }}
 
-      - name: Publish release (version tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # A new versionName on main publishes a release (once per version).
+      - name: Check for an existing release
+        id: rel
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.ver.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release
+        if: steps.rel.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Replicator Ops ${{ steps.ver.outputs.version }}
           files: ${{ steps.apk.outputs.name }}
           generate_release_notes: true

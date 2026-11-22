@@ -45,6 +45,8 @@ Mapped from the Q2C's own config and Box firmware modules (`box_extras`, `box_st
 
 From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleDebug` gives `app/build/outputs/apk/debug/app-debug.apk`.
 
+**Automatic builds:** GitHub Actions builds the APK on every push (download it from the run's *Artifacts*). Raising `versionName` in `app/build.gradle.kts` and pushing to `main` publishes a new release with the APK attached.
+
 ## Connecting
 
 - At home: enter the printer's IP, e.g. `192.168.1.50`.
