@@ -54,3 +54,9 @@ docs/qidi-maker-inspection.md   Notes from inspecting QIDI Maker 1.1.3
 ## Ideas for later
 
 SSDP printer discovery (QIDI's search target is in the notes), writing slot info back to the printer, case light, timelapse toggle, noodle-detection settings, MJPEG streaming, multiple printers, an Antonio font in `res/font`.
+
+## License
+
+Replicator Ops is free software under the [GNU General Public License v3.0](LICENSE). You can use, study, change and share it; anything you distribute that is based on it must also be released under GPL-3.0 with its source code.
+
+Not affiliated with QIDI Tech or Paramount.
