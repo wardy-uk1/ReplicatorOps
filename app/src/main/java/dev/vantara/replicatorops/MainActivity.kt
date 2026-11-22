@@ -19,6 +19,7 @@ import dev.vantara.replicatorops.ui.lcars.LcarsFrame
 import dev.vantara.replicatorops.ui.lcars.LcarsTheme
 import dev.vantara.replicatorops.ui.lcars.LocalLcars
 import dev.vantara.replicatorops.ui.lcars.NavItem
+import dev.vantara.replicatorops.ui.screens.CaptainsLogDialog
 import dev.vantara.replicatorops.ui.screens.ConfigScreen
 import dev.vantara.replicatorops.ui.screens.ControlScreen
 import dev.vantara.replicatorops.ui.screens.FilesScreen
@@ -74,6 +75,7 @@ private fun App(vm: AppViewModel) {
         }
     }
 
+    CaptainsLogDialog(vm)
     UplinkAlert(vm)
 }
 

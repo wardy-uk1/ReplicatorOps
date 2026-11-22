@@ -27,6 +27,7 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 - **Files:** thumbnail grid, details, start print, delete
 - **Mission log** (from Files): print history from Moonraker with Day/Week/Month/Year/All, success rate, print time, filament by type and recent prints
 - **Config:** 24th/25th Century styles, chirps, address/API key, diagnostics, plus raw QIDI Box data
+- **Captain's Log:** a "what's new" panel shown once after each upgrade, and from Config. It reads [`app/src/main/assets/CHANGELOG.md`](app/src/main/assets/CHANGELOG.md), which is also used for the GitHub release notes
 - **Starbase Uplink:** checks GitHub Releases when the app opens (alert chirp if a newer build exists) or on demand, then downloads it with a progress bar and opens Android's installer
 
 ### QIDI Box on the Q2C
@@ -48,7 +49,9 @@ From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleDebug` give
 
 **Signing:** every build is signed with one fixed key so Starbase Uplink can install updates over the top. CI reads it from the `SIGNING_KEYSTORE_B64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD` secrets; local builds can use a git-ignored `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Without the key, CI still builds but won't publish a release.
 
-**Automatic builds:** GitHub Actions builds the APK on every push (download it from the run's *Artifacts*). Raising `versionName` in `app/build.gradle.kts` and pushing to `main` publishes a new release with the APK attached.
+**Automatic builds:** GitHub Actions runs the unit tests and builds the APK on every push (download it from the run's *Artifacts*).
+
+**Releasing:** add a `## <version>` entry with `- ` bullets to [`CHANGELOG.md`](app/src/main/assets/CHANGELOG.md), raise `versionName`/`versionCode` in `app/build.gradle.kts`, and push to `main`. GitHub stamps the entry with the release date as a stardate (yyyyDD.MM), then builds, signs and publishes the release with that entry as its notes; the app shows the same entry as its Captain's Log after updating. A version with no log entry won't be released.
 
 ## Connecting
 

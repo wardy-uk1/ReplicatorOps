@@ -22,5 +22,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("chirps", true)
         set(v) = sp.edit().putBoolean("chirps", v).apply()
 
+    /** Last version whose Captain's Log entry the user has acknowledged. */
+    var lastSeenVersion: String
+        get() = sp.getString("last_seen_version", "") ?: ""
+        set(v) = sp.edit().putString("last_seen_version", v).apply()
+
     fun endpoint(): Endpoint? = Endpoint.parse(host, apiKey)
 }

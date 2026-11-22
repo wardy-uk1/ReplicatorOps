@@ -82,6 +82,7 @@ fun UplinkSection(vm: AppViewModel) {
                 ) { vm.checkUplink() }
             }
         }
+        LcarsButton("Captain's log", color = s.frameAlt) { vm.openLog() }
     }
 }
 
@@ -105,8 +106,10 @@ fun UplinkAlert(vm: AppViewModel) {
     val s = LocalLcars.current
     val show by vm.uplinkAlert.collectAsState()
     val st by vm.uplinkState.collectAsState()
+    val logShowing by vm.logPopup.collectAsState()
     val upgrade = (st as? UplinkState.Available)?.upgrade
-    if (!show || upgrade == null) return
+    // Let the Captain's Log go first if both want the screen.
+    if (!show || upgrade == null || logShowing.isNotEmpty()) return
 
     AlertDialog(
         onDismissRequest = { vm.dismissUplinkAlert() },

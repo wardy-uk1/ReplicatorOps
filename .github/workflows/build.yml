@@ -25,6 +25,45 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Read app version
+        id: ver
+        run: |
+          v=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+
+      # A new versionName on main publishes a release (once per version).
+      - name: Is this a new release?
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "${{ steps.ver.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Stamp today's stardate (yyyyDD.MM, UTC) on this version's Captain's Log entry,
+      # before the build, so the app, the release notes and the repo all show the release date.
+      - name: Stamp stardate
+        id: stardate
+        if: steps.rel.outputs.release == 'true'
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          sd=$(date -u +%Y%d.%m)
+          f=app/src/main/assets/CHANGELOG.md
+          ve=$(printf '%s' "$v" | sed 's/[.]/\\./g')
+          if ! grep -qE "^## v?${ve}( |$)" "$f"; then
+            echo "::error::No Captain's Log entry for $v in $f. Add '## $v' with '- ' bullets before releasing."
+            exit 1
+          fi
+          sed -i -E "s/^## v?${ve}( .*)?$/## ${v} · Stardate ${sd}/" "$f"
+          grep -E "^## ${ve} " "$f"
+          echo "stardate=$sd" >> "$GITHUB_OUTPUT"
+
       # The fixed signing key comes from repo secrets so every build can update the last one.
       - name: Prepare signing key
         id: sign
@@ -40,7 +79,7 @@ jobs:
             echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build debug APK
+      - name: Test and build debug APK
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
@@ -48,13 +87,6 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest assembleDebug --console=plain
-
-      - name: Read app version
-        id: ver
-        run: |
-          v=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "tag=v$v" >> "$GITHUB_OUTPUT"
 
       - name: Name the APK
         id: apk
@@ -69,25 +101,36 @@ jobs:
           name: ${{ steps.apk.outputs.name }}
           path: ${{ steps.apk.outputs.name }}
 
-      # A new versionName on main publishes a release (once per version).
-      - name: Check for an existing release
-        id: rel
-        if: steps.sign.outputs.signed == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Release notes come from the Captain's Log (the same entry the app shows).
+      - name: Release notes from Captain's Log
+        if: steps.rel.outputs.release == 'true' && steps.sign.outputs.signed == 'true'
         run: |
-          if gh release view "${{ steps.ver.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          v="${{ steps.ver.outputs.version }}"
+          awk -v v="$v" -v q="'" '
+            /^## / { if (found) exit; if ($2 == v || $2 == "v" v) { found = 1; print "### Captain" q "s Log · " substr($0, 4); print ""; next } }
+            found && /^[-*] / { print }
+          ' app/src/main/assets/CHANGELOG.md > release-notes.md
+          printf '\n---\nInstall the APK below, or update from inside the app with Starbase Uplink.\n' >> release-notes.md
+          cat release-notes.md
 
       - name: Publish release
-        if: steps.rel.outputs.exists == 'false'
+        if: steps.rel.outputs.release == 'true' && steps.sign.outputs.signed == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: Replicator Ops ${{ steps.ver.outputs.version }}
           files: ${{ steps.apk.outputs.name }}
-          generate_release_notes: true
+          body_path: release-notes.md
+
+      # Save the stamped stardate back to the repo so later builds keep it.
+      - name: Save stardate to the repo
+        if: steps.rel.outputs.release == 'true' && steps.sign.outputs.signed == 'true'
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/CHANGELOG.md
+          git diff --cached --quiet && exit 0
+          git commit -m "Captain's Log: stardate ${{ steps.stardate.outputs.stardate }} for ${{ steps.ver.outputs.version }}"
+          git push origin HEAD:main

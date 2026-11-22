@@ -13,6 +13,8 @@ import dev.vantara.replicatorops.data.Spool
 import dev.vantara.replicatorops.data.StoresRepo
 import dev.vantara.replicatorops.data.TempSample
 import dev.vantara.replicatorops.data.StarbaseUplink
+import dev.vantara.replicatorops.data.CaptainsLog
+import dev.vantara.replicatorops.data.LogEntry
 import dev.vantara.replicatorops.data.Upgrade
 import dev.vantara.replicatorops.BuildConfig
 import java.io.File
@@ -149,12 +151,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** True when the launch check found an upgrade and the alert dialog should show. */
     val uplinkAlert: StateFlow<Boolean> = _uplinkAlert.asStateFlow()
 
+    // ---- Captain's Log (what's new) -------------------------------------------------
+
+    /** Every release note bundled with this build, newest first. */
+    val captainsLog: List<LogEntry> = CaptainsLog.load(app)
+    private val _logPopup = MutableStateFlow<List<LogEntry>>(emptyList())
+    /** Entries to show in the Captain's Log pop-up; empty = hidden. */
+    val logPopup: StateFlow<List<LogEntry>> = _logPopup.asStateFlow()
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
 
     init {
         Chirp.enabled = prefs.chirps
         prefs.endpoint()?.let { client.connect(it) }
+        if (prefs.lastSeenVersion != appVersion) {
+            val pending = CaptainsLog.since(captainsLog, prefs.lastSeenVersion)
+                .ifEmpty { captainsLog.filter { it.version == appVersion } }
+            if (pending.isEmpty()) prefs.lastSeenVersion = appVersion else _logPopup.value = pending
+        }
         viewModelScope.launch {
             delay(1500)
             checkUplink(silent = true)
@@ -492,6 +507,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun dismissUplinkAlert() { _uplinkAlert.value = false }
+
+    /** Close the Captain's Log and remember this version has been seen. */
+    fun dismissLog() {
+        prefs.lastSeenVersion = appVersion
+        _logPopup.value = emptyList()
+    }
+
+    /** Show the whole Captain's Log (from Config). */
+    fun openLog() {
+        _logPopup.value = captainsLog
+    }
 
     /** Download (if needed) and hand the upgrade to Android's installer. */
     fun installUpgrade() {
