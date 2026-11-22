@@ -66,7 +66,9 @@ fun CameraView(url: String?, http: OkHttpClient, apiKey: String?, modifier: Modi
     ) {
         val f = frame
         when {
-            f != null -> Image(f, contentDescription = "Printer camera", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            f != null -> ZoomableBox(Modifier.fillMaxSize()) {
+                Image(f, contentDescription = "Printer camera. Pinch to zoom, double-tap to reset.", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            }
             url == null -> LcarsLabel("Visual sensors offline", color = s.dim)
             failed -> LcarsLabel("No camera signal", color = s.alert)
             else -> LcarsLabel("Acquiring image…", color = s.accent2)

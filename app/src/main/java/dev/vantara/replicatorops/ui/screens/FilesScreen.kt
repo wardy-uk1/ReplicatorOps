@@ -175,14 +175,17 @@ private fun FileDialog(
         text = {
             Column {
                 if (meta?.thumbnailUrl != null) {
-                    AsyncImage(
-                        model = meta.thumbnailUrl,
-                        imageLoader = vm.imageLoader,
-                        contentDescription = "Model thumbnail",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1.3f).background(Color(0xFF111111)),
-                    )
-                    Spacer(Modifier.height(8.dp))
+                    ZoomableBox(Modifier.fillMaxWidth().aspectRatio(1.3f).background(Color(0xFF111111))) {
+                        AsyncImage(
+                            model = meta.thumbnailUrl,
+                            imageLoader = vm.imageLoader,
+                            contentDescription = "Model thumbnail. Pinch to zoom, double-tap to reset.",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                    LcarsLabel("Pinch to zoom · double-tap to reset", color = s.dim, size = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                    Spacer(Modifier.height(6.dp))
                 }
                 LcarsReadout("Est. time", formatDuration(meta?.estimatedSeconds))
                 meta?.filamentMm?.let { LcarsReadout("Filament", "%.2f m".format(it / 1000)) }

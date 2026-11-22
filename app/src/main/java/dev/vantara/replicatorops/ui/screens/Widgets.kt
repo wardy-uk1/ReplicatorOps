@@ -1,6 +1,18 @@
 package dev.vantara.replicatorops.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -169,5 +181,59 @@ fun ColourPicker(selected: Long, onPick: (name: String, argb: Long) -> Unit) {
                     .semantics { contentDescription = name },
             )
         }
+    }
+}
+
+/**
+ * Pinch to zoom (1–5×), drag to pan while zoomed, double-tap to zoom in on a spot or reset.
+ * Used for model thumbnails and the camera view.
+ */
+@Composable
+fun ZoomableBox(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var boxSize by remember { mutableStateOf(IntSize.Zero) }
+
+    fun clamp(o: Offset, s: Float): Offset {
+        val maxX = boxSize.width * (s - 1f) / 2f
+        val maxY = boxSize.height * (s - 1f) / 2f
+        return Offset(o.x.coerceIn(-maxX, maxX), o.y.coerceIn(-maxY, maxY))
+    }
+
+    Box(
+        modifier
+            .clipToBounds()
+            .onSizeChanged { boxSize = it }
+            .pointerInput(Unit) {
+                detectTapGestures(onDoubleTap = { tap ->
+                    if (scale > 1f) {
+                        scale = 1f
+                        offset = Offset.Zero
+                    } else {
+                        val target = 2.5f
+                        val centre = Offset(boxSize.width / 2f, boxSize.height / 2f)
+                        scale = target
+                        offset = clamp((centre - tap) * (target - 1f), target)
+                    }
+                })
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    val newScale = (scale * zoom).coerceIn(1f, 5f)
+                    offset = if (newScale == 1f) Offset.Zero else clamp(offset + pan, newScale)
+                    scale = newScale
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = offset.x
+                translationY = offset.y
+            },
+            contentAlignment = Alignment.Center,
+        ) { content() }
     }
 }
