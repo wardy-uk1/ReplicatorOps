@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replicator Ops mockup – Mission log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.ph{width:390px;height:844px;box-sizing:border-box;padding:6px;background:#000;display:flex;flex-direction:column;font-family:'Antonio','Arial Narrow','Liberation Sans Narrow',sans-serif;text-transform:uppercase;letter-spacing:.04em;color:#FF9900}
+.top{display:flex;height:54px;flex:none}
+.elbow{position:relative;flex:1;background:#FF9900;border-top-left-radius:44px}
+.elbow i{position:absolute;left:96px;top:26px;right:0;bottom:0;background:#000;border-top-left-radius:20px}
+.title{height:30px;display:flex;align-items:center;padding:0 8px;font-size:28px;font-weight:700;color:#FF9900;line-height:1;white-space:nowrap}
+.cap{width:22px;height:26px;background:#FF9900;border-radius:0 999px 999px 0;flex:none}
+.mid{flex:1;display:flex;min-height:0}
+.side{width:96px;display:flex;flex-direction:column;gap:4px;padding:4px 0;flex:none}
+.nav{height:58px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 6px 4px 0;color:#000;font-family:inherit;font-size:15px;text-transform:uppercase;letter-spacing:inherit;border:0;text-decoration:none}
+.fill{flex:1;background:#CC99CC}
+.content{flex:1;min-width:0;padding:4px 0 0 10px;overflow:hidden;position:relative}
+.bot{display:flex;align-items:flex-end;height:39px;flex:none}
+.belbow{position:relative;flex:1;height:100%;background:#FF9900;border-bottom-left-radius:44px}
+.belbow i{position:absolute;left:96px;top:0;right:0;bottom:18px;background:#000;border-bottom-left-radius:20px}
+.foot{height:18px;display:flex;align-items:center;padding:0 8px;font-size:13px;color:#FF9900;white-space:nowrap}
+.bcap{width:22px;height:18px;background:#FF9900;border-radius:0 999px 999px 0;flex:none}
+.sh{display:flex;align-items:center;gap:6px;margin:14px 0 8px}
+.sh .l{width:16px;height:20px;border-radius:999px 0 0 999px;flex:none}
+.sh .t{font-size:18px;font-weight:700;white-space:nowrap}
+.sh .r{flex:1;height:10px;border-radius:0 999px 999px 0}
+.ro{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0}
+.ro .k{color:#99CCFF;font-size:15px}
+.ro .v{font-size:18px;text-align:right;white-space:nowrap}
+.btn{height:44px;min-width:72px;box-sizing:border-box;padding:0 14px;border:0;border-radius:999px;display:inline-flex;align-items:center;justify-content:flex-end;color:#000;font-family:inherit;font-size:15px;text-transform:uppercase;letter-spacing:inherit;text-decoration:none}
+.btn.off{background:#4A3320!important;color:#8a8a8a}
+.chip{height:34px;box-sizing:border-box;padding:0 12px;border-radius:999px;border:2px solid #FFCC66;background:#000;color:#FFCC66;font-family:inherit;font-size:14px;text-transform:uppercase;letter-spacing:inherit;display:inline-flex;align-items:center}
+.chip.on{background:#FFCC66;color:#000}
+.prog{display:flex;gap:3px;height:16px}
+.prog b{flex:1;background:#4A3320}
+.prog b.on{background:#FFCC66}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.hint{font-size:13px;color:#9a8a7a;text-transform:none;letter-spacing:.01em;font-family:'Antonio','Arial Narrow','Liberation Sans Narrow',sans-serif}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.field label{font-size:13px;color:#99CCFF}
+.field input{height:46px;box-sizing:border-box;border:2px solid #FF9900;border-radius:8px;background:#000;color:#FF9900;font-family:inherit;font-size:18px;padding:0 10px;letter-spacing:.02em}
+.ph-img{background:#0d0d0d;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:#8a8a8a;font-size:13px}
+
+html,body{background:#000}
+</style>
+</head>
+<body>
+<div class="ph">
+<div class="top"><div class="elbow"><i></i></div><div class="title">Replicator Ops</div><div class="cap"></div></div>
+<div class="mid">
+<nav class="side" aria-label="Sections"><button type="button" class="nav" style="background:#FFCC99">Status</button><button type="button" class="nav" style="background:#9999FF">Control</button><button type="button" class="nav" style="background:#FFCC66" aria-current="page">Files</button><button type="button" class="nav" style="background:#FF9966">Config</button><div class="fill"></div></nav>
+<main class="content">
+<a href="#" style="display:inline-flex;align-items:center;gap:6px;color:#99CCFF;font-size:15px;text-decoration:none;height:30px">‹ Files</a><div class="sh"><div class="l" style="background:#9999FF"></div><div class="t" style="color:#9999FF">Mission log</div><div class="r" style="background:#9999FF"></div></div><div class="row" style="gap:5px"><button type="button" class="chip" style="padding:0 9px">Day</button><button type="button" class="chip" style="padding:0 9px">Week</button><button type="button" class="chip" style="padding:0 9px">Month</button><button type="button" class="chip" style="padding:0 9px">Year</button><button type="button" class="chip on" style="padding:0 9px">All</button></div><div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px;margin-top:12px"><div style="border-left:6px solid #9999FF;padding:2px 0 2px 8px"><div style="font-size:12px;color:#99CCFF">Total prints</div><div style="font-size:26px;font-weight:700;color:#FF9900;line-height:1.1">13</div></div><div style="border-left:6px solid #9999FF;padding:2px 0 2px 8px"><div style="font-size:12px;color:#99CCFF">Success rate</div><div style="font-size:26px;font-weight:700;color:#FFCC66;line-height:1.1">85%</div></div><div style="border-left:6px solid #9999FF;padding:2px 0 2px 8px"><div style="font-size:12px;color:#99CCFF">Print time</div><div style="font-size:26px;font-weight:700;color:#FF9900;line-height:1.1">27h 20m</div></div><div style="border-left:6px solid #9999FF;padding:2px 0 2px 8px"><div style="font-size:12px;color:#99CCFF">Filament used</div><div style="font-size:26px;font-weight:700;color:#FF9900;line-height:1.1">82.0 m</div></div></div><div class="sh"><div class="l" style="background:#CC6699"></div><div class="t" style="color:#CC6699">Filament by type</div><div class="r" style="background:#CC6699"></div></div><div style="display:flex;align-items:center;gap:8px;margin:4px 0"><span style="width:62px;font-size:13px;color:#99CCFF">PLA</span><div style="flex:1;height:12px;background:#4A3320"><div style="height:12px;width:100%;background:#FFCC66"></div></div><span style="width:46px;text-align:right;font-size:14px">61.4 m</span></div><div style="display:flex;align-items:center;gap:8px;margin:4px 0"><span style="width:62px;font-size:13px;color:#99CCFF">PETG</span><div style="flex:1;height:12px;background:#4A3320"><div style="height:12px;width:23%;background:#9999FF"></div></div><span style="width:46px;text-align:right;font-size:14px">14.2 m</span></div><div style="display:flex;align-items:center;gap:8px;margin:4px 0"><span style="width:62px;font-size:13px;color:#99CCFF">Silk PLA</span><div style="flex:1;height:12px;background:#4A3320"><div style="height:12px;width:10%;background:#CC6699"></div></div><span style="width:46px;text-align:right;font-size:14px">6.4 m</span></div><div class="sh"><div class="l" style="background:#FF9900"></div><div class="t" style="color:#FF9900">Recent</div><div class="r" style="background:#FF9900"></div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #4A3320"><span style="width:8px;height:8px;border-radius:50%;background:#FFCC66;flex:none"></span><div style="flex:1;min-width:0"><div style="font-size:14px;color:#FF9900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">3DBenchy_PLA_0.2mm</div><div style="font-size:12px;color:#99CCFF">Complete · 1h 31m · 22 Nov</div></div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #4A3320"><span style="width:8px;height:8px;border-radius:50%;background:#FFCC66;flex:none"></span><div style="flex:1;min-width:0"><div style="font-size:14px;color:#FF9900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Speaker_Mount_Q2C</div><div style="font-size:12px;color:#99CCFF">Complete · 54m · 19 Nov</div></div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #4A3320"><span style="width:8px;height:8px;border-radius:50%;background:#DD4444;flex:none"></span><div style="flex:1;min-width:0"><div style="font-size:14px;color:#FF9900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Pico2_Case_Lid</div><div style="font-size:12px;color:#99CCFF">Cancelled · 12m · 19 Nov</div></div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #4A3320"><span style="width:8px;height:8px;border-radius:50%;background:#FFCC66;flex:none"></span><div style="flex:1;min-width:0"><div style="font-size:14px;color:#FF9900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">LCARS_Panel_Bezel</div><div style="font-size:12px;color:#99CCFF">Complete · 3h 05m · 18 Nov</div></div></div><div style="margin-top:10px"><button type="button" class="btn" style="background:#9999FF;width:100%">Full history</button></div>
+</main>
+</div>
+<div class="bot"><div class="belbow"><i></i></div><div class="foot">Standing by · stardate 202622.11</div><div class="bcap"></div></div>
+</div>
+</body>
+</html>

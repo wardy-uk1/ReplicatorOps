@@ -6,6 +6,18 @@ An open-source, LCARS-styled Android app for controlling QIDI (and other Klipper
 
 > Not affiliated with QIDI Tech or Paramount. "LCARS" styling is an original fan interpretation.
 
+## Screens
+
+Design mockups with example data. See [all screens](docs/mockups/png), or open the HTML versions in [`docs/mockups`](docs/mockups).
+
+| Status | Control | Replicator stores | Mission log |
+|---|---|---|---|
+| <img src="docs/mockups/png/status.png" width="190" alt="Status screen"> | <img src="docs/mockups/png/control.png" width="190" alt="Control screen"> | <img src="docs/mockups/png/replicator-stores.png" width="190" alt="Replicator stores screen"> | <img src="docs/mockups/png/mission-log.png" width="190" alt="Mission log screen"> |
+
+| Files | File details | Status · 25th Century | Config · 25th Century |
+|---|---|---|---|
+| <img src="docs/mockups/png/files.png" width="190" alt="Files screen"> | <img src="docs/mockups/png/file-details.png" width="190" alt="File details"> | <img src="docs/mockups/png/status-25th-century.png" width="190" alt="Status screen in 25th Century style"> | <img src="docs/mockups/png/config-25th-century.png" width="190" alt="Config screen in 25th Century style"> |
+
 ## Features (v0.2)
 
 - **Status:** LCARS line drawing of the Q2C with nozzle, bed and chamber temperatures beside it, fan speeds, current print (thumbnail, %, layer, time left), a 30-minute temperature graph, and a Camera button

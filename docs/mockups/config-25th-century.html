@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replicator Ops mockup – Config – 25th Century</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.ph{width:390px;height:844px;box-sizing:border-box;padding:6px;background:#000;display:flex;flex-direction:column;font-family:'Antonio','Arial Narrow','Liberation Sans Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;color:#8FB4E8}
+.top{display:flex;height:40px;flex:none}
+.elbow{position:relative;flex:1;background:#3D6DAD;border-top-left-radius:30px}
+.elbow i{position:absolute;left:84px;top:14px;right:0;bottom:0;background:#000;border-top-left-radius:12px}
+.title{height:30px;display:flex;align-items:center;padding:0 8px;font-size:22px;font-weight:700;color:#3D6DAD;line-height:1;white-space:nowrap}
+.cap{width:22px;height:14px;background:#3D6DAD;border-radius:0 999px 999px 0;flex:none}
+.mid{flex:1;display:flex;min-height:0}
+.side{width:84px;display:flex;flex-direction:column;gap:3px;padding:3px 0;flex:none}
+.nav{height:58px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 6px 4px 0;color:#000;font-family:inherit;font-size:15px;text-transform:uppercase;letter-spacing:inherit;border:0;text-decoration:none}
+.fill{flex:1;background:#223F69}
+.content{flex:1;min-width:0;padding:4px 0 0 10px;overflow:hidden;position:relative}
+.bot{display:flex;align-items:flex-end;height:28px;flex:none}
+.belbow{position:relative;flex:1;height:100%;background:#3D6DAD;border-bottom-left-radius:30px}
+.belbow i{position:absolute;left:84px;top:0;right:0;bottom:10px;background:#000;border-bottom-left-radius:12px}
+.foot{height:18px;display:flex;align-items:center;padding:0 8px;font-size:13px;color:#3D6DAD;white-space:nowrap}
+.bcap{width:22px;height:10px;background:#3D6DAD;border-radius:0 999px 999px 0;flex:none}
+.sh{display:flex;align-items:center;gap:6px;margin:14px 0 8px}
+.sh .l{width:16px;height:20px;border-radius:999px 0 0 999px;flex:none}
+.sh .t{font-size:18px;font-weight:700;white-space:nowrap}
+.sh .r{flex:1;height:10px;border-radius:0 999px 999px 0}
+.ro{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0}
+.ro .k{color:#7FD0E8;font-size:15px}
+.ro .v{font-size:18px;text-align:right;white-space:nowrap}
+.btn{height:44px;min-width:72px;box-sizing:border-box;padding:0 14px;border:0;border-radius:999px;display:inline-flex;align-items:center;justify-content:flex-end;color:#000;font-family:inherit;font-size:15px;text-transform:uppercase;letter-spacing:inherit;text-decoration:none}
+.btn.off{background:#1#7FD0E8840!important;color:#8a8a8a}
+.chip{height:34px;box-sizing:border-box;padding:0 12px;border-radius:999px;border:2px solid #E8A04A;background:#000;color:#E8A04A;font-family:inherit;font-size:14px;text-transform:uppercase;letter-spacing:inherit;display:inline-flex;align-items:center}
+.chip.on{background:#E8A04A;color:#000}
+.prog{display:flex;gap:3px;height:16px}
+.prog b{flex:1;background:#1#7FD0E8840}
+.prog b.on{background:#E8A04A}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.hint{font-size:13px;color:#9a8a7a;text-transform:none;letter-spacing:.01em;font-family:'Antonio','Arial Narrow','Liberation Sans Narrow',sans-serif}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.field label{font-size:13px;color:#7FD0E8}
+.field input{height:46px;box-sizing:border-box;border:2px solid #3D6DAD;border-radius:8px;background:#000;color:#8FB4E8;font-family:inherit;font-size:18px;padding:0 10px;letter-spacing:.02em}
+.ph-img{background:#0d0d0d;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:#8a8a8a;font-size:13px}
+
+html,body{background:#000}
+</style>
+</head>
+<body>
+<div class="ph">
+<div class="top"><div class="elbow"><i></i></div><div class="title">Replicator Ops</div><div class="cap"></div></div>
+<div class="mid">
+<nav class="side" aria-label="Sections"><button type="button" class="nav" style="background:#5B8FD6">Status</button><button type="button" class="nav" style="background:#E8A04A">Control</button><button type="button" class="nav" style="background:#8FB4E8">Files</button><button type="button" class="nav" style="background:#E8A04A" aria-current="page">Config</button><div class="fill"></div></nav>
+<main class="content">
+
+<div class="sh"><div class="l" style="background:#3D6DAD"></div><div class="t" style="color:#3D6DAD">LCARS System</div><div class="r" style="background:#3D6DAD"></div></div>
+<div class="row"><button type="button" class="chip">24th Century</button><button type="button" class="chip on">25th Century</button></div>
+<div class="row" style="margin-top:10px"><button type="button" class="chip on">Chirps on</button><button type="button" class="chip">Chirps off</button></div>
+<div class="sh"><div class="l" style="background:#E8A04A"></div><div class="t" style="color:#E8A04A">Subspace link</div><div class="r" style="background:#E8A04A"></div></div>
+<div class="field"><label for="host">Printer address</label><input id="host" type="text" value="qidi-q2.tail985254.ts.net"></div>
+<div class="field"><label for="key">API key (optional)</label><input id="key" type="password" value="xxxxxxxxxxxx"></div>
+<div class="hint">No port = port 80 (QIDI's web UI). Add :7125 to talk to Moonraker directly.</div>
+<div class="row" style="margin-top:10px"><button type="button" class="btn" style="background:#E8A04A;">Engage</button><button type="button" class="btn" style="background:#223F69;">Disconnect</button></div>
+<div class="sh"><div class="l" style="background:#8FB4E8"></div><div class="t" style="color:#8FB4E8">Diagnostics</div><div class="r" style="background:#8FB4E8"></div></div>
+<div class="ro"><span class="k">Link</span><span class="v" style="color:#E8A04A">Established</span></div><div class="ro"><span class="k">Klipper</span><span class="v">Ready</span></div>
+<div style="margin-top:8px"><button type="button" class="btn" style="background:#D9664F;">Firmware restart</button></div>
+
+</main>
+</div>
+<div class="bot"><div class="belbow"><i></i></div><div class="foot">Standing by · stardate 202622.11</div><div class="bcap"></div></div>
+</div>
+</body>
+</html>
