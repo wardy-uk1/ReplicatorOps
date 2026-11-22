@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.3.4
+## 0.3.4 · Stardate 202622.11
 - Pinch to zoom on model pictures in File details and on the camera view
 - Drag to look around while zoomed; double-tap to zoom in on a spot or reset
 
