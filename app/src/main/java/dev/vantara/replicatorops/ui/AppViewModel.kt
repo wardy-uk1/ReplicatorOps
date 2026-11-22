@@ -323,7 +323,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun boxLoad(slot: Int) = gcode("M109 S${boxTemp()}\nEXTRUDER_LOAD SLOT=slot$slot", "Loading slot ${slot + 1}")
     fun boxUnload(slot: Int) = gcode("M109 S${boxTemp()}\nEXTRUDER_UNLOAD SLOT=slot$slot", "Unloading slot ${slot + 1}")
-    fun boxReadRfid(slot: Int) = gcode("SLOT_RFID_READ SLOT=slot$slot", "Reading tag in slot ${slot + 1}")
+    fun boxReadRfid(slot: Int) {
+        // Don't send a tag read to an empty slot; the printer would just report nothing.
+        val reported = printer.value.box?.slots?.getOrNull(slot)
+        if (reported != null && !reported.loaded) {
+            Chirp.deny()
+            say("No filament in slot ${slot + 1}. Insert a spool to read its tag.")
+            return
+        }
+        gcode("SLOT_RFID_READ SLOT=slot$slot", "Reading tag in slot ${slot + 1}")
+    }
 
     /** Write a slot colour where the Box firmware reads it: color_slotN = ['RRGGBB'] in save_variables. */
     private fun writeSlotColour(slot: Int, argb: Long) {
