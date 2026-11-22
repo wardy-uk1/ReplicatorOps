@@ -59,7 +59,7 @@ From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleDebug` give
 - Remotely: enter its Tailscale name, e.g. `qidi-q2.tail985254.ts.net`.
 - With no port, the app uses port 80 (QIDI's nginx, which forwards to Moonraker). If that fails, try `:7125`.
 - **Tailscale on the Q2C:** the stock `moonraker.conf` only trusts home-network ranges, so add `100.64.0.0/10` under `[authorization] trusted_clients` (then restart Moonraker), or use an API key.
-- **IPv6:** type the address as is (`fd7a:115c:a1e0::4646:226a`) or with a port in brackets (`[fd7a:115c:a1e0::4646:226a]:7125`). Link-local `fe80::` addresses aren't supported. The stock Q2C only listens on IPv4, so on the printer:
+- **IPv6:** type the address as is (`fd7a:115c:a1e0::4646:226a`) or with a port in brackets (`[fd7a:115c:a1e0::4646:226a]:7125`). Link-local `fe80::` addresses aren't supported. Tested over Tailscale IPv6 on a Q2C. The stock Q2C only listens on IPv4, so on the printer:
   1. In `moonraker.conf` under `[server]`, change `host: 0.0.0.0` to `host: all` (IPv4 + IPv6), and add `fd7a:115c:a1e0::/48` (Tailscale IPv6) and your home IPv6 range (e.g. `fd00::/8`) to `trusted_clients`. Restart Moonraker. Port 7125 then works over IPv6.
   2. Optional, for port 80 (no `:7125`): add `listen [::]:80;` next to `listen 80;` in `/etc/nginx/sites-enabled/fluidd`, then `sudo systemctl reload nginx`.
 - If you get "Unauthorised", either add an API key (Fluidd → Settings → Authentication) or add your network to `[authorization] trusted_clients` in `moonraker.conf`. For Tailscale, that's `100.64.0.0/10`.
