@@ -1,0 +1,198 @@
+package dev.vantara.replicatorops.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import dev.vantara.replicatorops.data.PrinterState
+import dev.vantara.replicatorops.ui.AppViewModel
+import dev.vantara.replicatorops.ui.lcars.LcarsButton
+import dev.vantara.replicatorops.ui.lcars.LcarsConfirm
+import dev.vantara.replicatorops.ui.lcars.LcarsLabel
+import dev.vantara.replicatorops.ui.lcars.LcarsProgress
+import dev.vantara.replicatorops.ui.lcars.LcarsSectionHeader
+import dev.vantara.replicatorops.ui.lcars.LocalLcars
+import dev.vantara.replicatorops.ui.lcars.formatDuration
+
+@Composable
+fun StatusScreen(vm: AppViewModel) {
+    val s = LocalLcars.current
+    val p by vm.printer.collectAsState()
+    val meta by vm.meta.collectAsState()
+    val temps by vm.temps.collectAsState()
+    var confirmCancel by remember { mutableStateOf(false) }
+    var showCamera by remember { mutableStateOf(false) }
+
+    val nozzle = p.heaters.firstOrNull { it.objectName == "extruder" }
+    val bed = p.heaters.firstOrNull { it.objectName == "heater_bed" }
+    val chamber = p.heaters.firstOrNull { "chamber" in it.objectName }
+        ?: p.heaters.firstOrNull { it.objectName != "extruder" && it.objectName != "heater_bed" }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LcarsLabel("Replicator", color = s.accent2, size = 15.sp)
+            Spacer(Modifier.width(10.dp))
+            LcarsLabel(stateLabel(p), color = stateColor(p), size = 22.sp, bold = true)
+        }
+        p.klippyMessage?.takeIf { !p.ready }?.let {
+            LcarsLabel(it, color = s.alert, size = 14.sp, maxLines = 4)
+        }
+
+        // ---- Printer drawing with temperatures ---------------------------------
+        LcarsSectionHeader("Q2C · Engineering", color = s.frame)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PrinterDrawing()
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TempTile("Nozzle", nozzle?.temperature, nozzle?.target, s.accent)
+                TempTile("Bed", bed?.temperature, bed?.target, s.nav[2])
+                TempTile(chamber?.label ?: "Chamber", chamber?.temperature, chamber?.target, s.accent2)
+            }
+        }
+        if (p.fans.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                p.fans.take(3).forEach { f ->
+                    Row(
+                        Modifier.weight(1f).height(30.dp)
+                            .border(2.dp, s.nav[1], RoundedCornerShape(percent = 50)),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LcarsLabel(f.label, color = s.accent2, size = 13.sp)
+                        Spacer(Modifier.width(5.dp))
+                        LcarsLabel("${(f.speed * 100).toInt()}%", color = s.text, size = 13.sp)
+                    }
+                }
+            }
+        }
+
+        // ---- Current print ----------------------------------------------------
+        val file = p.filename
+        if (file != null) {
+            LcarsSectionHeader("Replication", color = s.nav[0])
+            val m = meta[file]
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(64.dp).background(Color(0xFF111111)), contentAlignment = Alignment.Center) {
+                    if (m?.thumbnailUrl != null) {
+                        AsyncImage(
+                            model = m.thumbnailUrl,
+                            imageLoader = vm.imageLoader,
+                            contentDescription = "Model thumbnail",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    LcarsLabel(file.substringAfterLast('/').removeSuffix(".gcode"), color = s.text, size = 16.sp)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        LcarsLabel("%.1f%%".format(p.progress * 100), color = s.accent, size = 28.sp, bold = true)
+                        Spacer(Modifier.width(8.dp))
+                        val layer = if ((p.totalLayers ?: 0) > 0) "Layer ${p.currentLayer ?: 0}/${p.totalLayers} · " else ""
+                        val left = formatDuration(p.remainingSeconds ?: m?.estimatedSeconds?.minus(p.printDuration))
+                        LcarsLabel("$layer$left left", color = s.accent2, size = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            LcarsProgress(p.progress)
+            Spacer(Modifier.height(8.dp))
+        } else {
+            Spacer(Modifier.height(10.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (p.isBusy) {
+                if (p.isPaused) {
+                    LcarsButton("Resume", color = s.nav[0], height = 38.dp) { vm.resume() }
+                } else {
+                    LcarsButton("Pause", color = s.nav[0], height = 38.dp) { vm.pause() }
+                }
+                LcarsButton("Cancel", color = s.alert, height = 38.dp) { confirmCancel = true }
+            }
+            LcarsButton("Camera", color = s.nav[1], height = 38.dp, enabled = p.online) { showCamera = true }
+        }
+
+        // ---- Thermal log ------------------------------------------------------
+        LcarsSectionHeader("Thermal log", color = s.nav[2])
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LcarsLabel("— Nozzle", color = s.accent, size = 13.sp)
+            LcarsLabel("— Bed", color = s.nav[2], size = 13.sp)
+        }
+        TempChart(temps)
+        Spacer(Modifier.height(24.dp))
+    }
+
+    if (showCamera) {
+        val camUrl by vm.webcamUrl.collectAsState()
+        AlertDialog(
+            onDismissRequest = { showCamera = false },
+            containerColor = Color.Black,
+            modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
+            title = { LcarsLabel("Visual sensors", color = s.nav[1], size = 20.sp, bold = true) },
+            text = { CameraView(camUrl, vm.http, vm.prefs.apiKey.ifBlank { null }, Modifier.fillMaxWidth()) },
+            confirmButton = { LcarsButton("Close", color = s.frameAlt) { showCamera = false } },
+        )
+    }
+
+    if (confirmCancel) {
+        LcarsConfirm(
+            title = "Abort replication?",
+            text = "This cancels the current print. It can't be resumed.",
+            confirmLabel = "Abort",
+            onConfirm = { confirmCancel = false; vm.cancel() },
+            onDismiss = { confirmCancel = false },
+        )
+    }
+}
+
+fun stateLabel(p: PrinterState): String = when {
+    !p.online -> "Offline"
+    p.klippy != "ready" -> "Klipper ${p.klippy}"
+    else -> when (p.printState) {
+        "printing" -> "Replicating"
+        "paused" -> "Paused"
+        "complete" -> "Complete"
+        "cancelled" -> "Cancelled"
+        "error" -> "Error"
+        else -> "Standing by"
+    }
+}
+
+@Composable
+fun stateColor(p: PrinterState): Color {
+    val s = LocalLcars.current
+    return when {
+        !p.online || p.klippy != "ready" || p.printState == "error" -> s.alert
+        p.isPrinting -> s.accent
+        p.isPaused -> s.nav[0]
+        else -> s.accent2
+    }
+}
