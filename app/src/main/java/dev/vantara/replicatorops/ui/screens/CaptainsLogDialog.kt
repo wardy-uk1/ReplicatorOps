@@ -1,6 +1,8 @@
 package dev.vantara.replicatorops.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,8 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import dev.vantara.replicatorops.data.LogEntry
 import dev.vantara.replicatorops.ui.AppViewModel
 import dev.vantara.replicatorops.ui.lcars.Chirp
@@ -35,7 +35,7 @@ import dev.vantara.replicatorops.ui.lcars.LcarsFont
 import dev.vantara.replicatorops.ui.lcars.LcarsLabel
 import dev.vantara.replicatorops.ui.lcars.LocalLcars
 
-/** "What's new" after an upgrade, as an LCARS Captain's Log panel. Also opened from Config. */
+/** "What's new" after an upgrade, in the same rounded LCARS panel as the camera view. Also opened from Config. */
 @Composable
 fun CaptainsLogDialog(vm: AppViewModel) {
     val entries by vm.logPopup.collectAsState()
@@ -45,63 +45,24 @@ fun CaptainsLogDialog(vm: AppViewModel) {
 
     LaunchedEffect(entries) { Chirp.confirm() }
 
-    Dialog(
+    AlertDialog(
         onDismissRequest = { vm.dismissLog() },
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth(0.94f)
-                .clip(RoundedCornerShape(topStart = 36.dp, bottomStart = 36.dp, topEnd = 8.dp, bottomEnd = 8.dp))
-                .background(Color.Black),
-        ) {
-            // Top bar: rounded cap, title, bar to the edge.
-            Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.width(40.dp).height(40.dp)
-                        .clip(RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50))
-                        .background(s.frame)
+        containerColor = Color.Black,
+        modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
+        title = { LcarsLabel("Captain's Log", color = s.nav[1], size = 22.sp, bold = true) },
+        text = {
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
+                LcarsLabel(
+                    if (upgraded) "Upgrade complete · now running ${vm.appVersion}" else "Software history",
+                    color = s.accent2, size = 14.sp,
                 )
-                Spacer(Modifier.width(8.dp))
-                LcarsLabel("Captain's Log", color = s.frame, size = 24.sp, bold = true)
-                Spacer(Modifier.width(8.dp))
-                Box(Modifier.weight(1f).height(16.dp).background(s.frame))
+                entries.forEachIndexed { i, e -> Entry(e, s.nav[i % s.nav.size]) }
             }
-
-            Row(Modifier.fillMaxWidth()) {
-                // Left sidebar block, like the main frame.
-                Box(Modifier.width(40.dp).heightIn(min = 120.dp).background(s.frameAlt).padding(top = 4.dp))
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp)
-                        .heightIn(max = 460.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    LcarsLabel(
-                        if (upgraded) "Upgrade complete · now running ${vm.appVersion}" else "Software history",
-                        color = s.accent2, size = 14.sp,
-                    )
-                    entries.forEachIndexed { i, e -> Entry(e, s.nav[i % s.nav.size]) }
-                }
-            }
-
-            // Bottom bar with the acknowledge button.
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.width(40.dp).height(52.dp)
-                        .clip(RoundedCornerShape(bottomStartPercent = 50))
-                        .background(s.frame)
-                )
-                Spacer(Modifier.width(8.dp))
-                Box(Modifier.weight(1f).height(10.dp).background(s.frame))
-                Spacer(Modifier.width(8.dp))
-                LcarsButton("Acknowledged", color = s.accent, sound = Chirp::confirm, modifier = Modifier.padding(end = 8.dp, bottom = 4.dp)) {
-                    vm.dismissLog()
-                }
-            }
-        }
-    }
+        },
+        confirmButton = {
+            LcarsButton("Acknowledged", color = s.frameAlt, sound = Chirp::confirm) { vm.dismissLog() }
+        },
+    )
 }
 
 @Composable

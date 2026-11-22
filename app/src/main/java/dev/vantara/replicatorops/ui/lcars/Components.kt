@@ -1,6 +1,8 @@
 package dev.vantara.replicatorops.ui.lcars
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +46,7 @@ data class NavItem(val label: String, val color: Color)
 
 // ---- Text ------------------------------------------------------------------
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LcarsLabel(
     text: String,
@@ -54,9 +57,11 @@ fun LcarsLabel(
     bold: Boolean = false,
     maxLines: Int = 1,
 ) {
+    // Single-line text that doesn't fit slides across (marquee) instead of being cut off.
+    val slide = maxLines == 1
     Text(
         text = text.uppercase(),
-        modifier = modifier,
+        modifier = if (slide) modifier.basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 1500) else modifier,
         color = color,
         fontSize = size,
         fontFamily = LcarsFont,
@@ -64,7 +69,8 @@ fun LcarsLabel(
         letterSpacing = LocalLcars.current.tracking.em,
         textAlign = align,
         maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
+        softWrap = !slide,
+        overflow = if (slide) TextOverflow.Clip else TextOverflow.Ellipsis,
     )
 }
 

@@ -457,14 +457,21 @@ class MoonrakerClient(
     }
 
     /** Print history, newest first. [since] is a Unix time in seconds, or null for all. */
-    suspend fun history(since: Double?, limit: Int = 500): List<HistoryJob> {
-        val params = buildJsonObject {
-            put("limit", limit)
-            put("order", "desc")
-            if (since != null) put("since", since)
+    suspend fun history(since: Double?, pageSize: Int = 500, maxJobs: Int = 20_000): List<HistoryJob> {
+        // Moonraker returns at most `limit` jobs per call, so page through with `start`.
+        val all = ArrayList<JsonElement>()
+        while (all.size < maxJobs) {
+            val params = buildJsonObject {
+                put("limit", pageSize)
+                put("start", all.size)
+                put("order", "desc")
+                if (since != null) put("since", since)
+            }
+            val page = call("server.history.list", params).jsonObject["jobs"] as? JsonArray ?: break
+            all.addAll(page)
+            if (page.size < pageSize) break
         }
-        val jobs = call("server.history.list", params).jsonObject["jobs"] as? JsonArray ?: return emptyList()
-        return jobs.mapNotNull { el ->
+        return all.mapNotNull { el ->
             val j = el as? JsonObject ?: return@mapNotNull null
             val meta = j["metadata"] as? JsonObject
             HistoryJob(
