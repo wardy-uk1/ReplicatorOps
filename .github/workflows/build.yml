@@ -47,7 +47,7 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --console=plain
+          ./gradlew testDebugUnitTest assembleDebug --console=plain
 
       - name: Read app version
         id: ver

@@ -239,7 +239,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ep = Endpoint.parse(host, apiKey)
         if (ep == null) {
             Chirp.deny()
-            say("Enter the printer's address")
+            say(Endpoint.problem(host) ?: "That doesn't look like a valid address")
             return
         }
         prefs.host = host.trim()

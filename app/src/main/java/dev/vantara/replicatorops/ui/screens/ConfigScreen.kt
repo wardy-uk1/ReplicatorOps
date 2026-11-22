@@ -62,7 +62,7 @@ fun ConfigScreen(vm: AppViewModel) {
             value = host,
             onValueChange = { host = it },
             label = { LcarsLabel("Printer address", color = s.accent2, size = 13.sp) },
-            placeholder = { LcarsLabel("192.168.1.50 or name.ts.net", color = s.dim) },
+            placeholder = { LcarsLabel("192.168.1.50, name.ts.net or IPv6", color = s.dim) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             textStyle = field,
@@ -79,8 +79,8 @@ fun ConfigScreen(vm: AppViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
         LcarsLabel(
-            "No port = port 80 (QIDI's web UI). Add :7125 to talk to Moonraker directly.",
-            color = s.dim, size = 13.sp, maxLines = 3,
+            "No port = port 80 (QIDI's web UI). Add :7125 to talk to Moonraker directly. IPv6 works as typed, or as [address]:7125 with a port.",
+            color = s.dim, size = 13.sp, maxLines = 4,
         )
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -1,5 +1,6 @@
 package dev.vantara.replicatorops.data
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.net.URI
 import java.net.URLEncoder
 
@@ -7,7 +8,8 @@ import java.net.URLEncoder
  * Where the printer's Moonraker lives.
  *
  * The user types a host such as `192.168.1.50`, `qidi-q2.tail985254.ts.net`
- * or `192.168.1.50:7125`. With no port we use port 80, where QIDI's nginx
+ * or `192.168.1.50:7125`, and IPv6 such as `fd7a:115c:a1e0::1` or `[fd7a:115c:a1e0::1]:7125`.
+ * With no port we use port 80, where QIDI's nginx
  * forwards `/websocket` and `/server/...` to Moonraker (same as Fluidd).
  */
 data class Endpoint(val baseUrl: String, val apiKey: String?) {
@@ -32,12 +34,45 @@ data class Endpoint(val baseUrl: String, val apiKey: String?) {
         baseUrl + "/server/files/gcodes/" + encodePath(relativePath)
 
     companion object {
+        /**
+         * Accepts host names, IPv4 and IPv6, with or without a scheme or port:
+         * `192.168.1.50`, `printer.local:7125`, `fd7a:115c:a1e0::1`, `[fd7a:115c:a1e0::1]:7125`,
+         * `http://[2a00:23c7::5]`. A bare IPv6 address (no brackets) is taken as having no port.
+         */
         fun parse(input: String, apiKey: String?): Endpoint? {
-            var s = input.trim().trimEnd('/')
-            if (s.isEmpty()) return null
-            if (!s.contains("://")) s = "http://$s"
-            if (!(s.startsWith("http://") || s.startsWith("https://"))) return null
-            return Endpoint(s, apiKey?.trim()?.takeIf { it.isNotEmpty() })
+            val url = normalise(input) ?: return null
+            return Endpoint(url, apiKey?.trim()?.takeIf { it.isNotEmpty() })
+        }
+
+        /** Why an address can't be used, for the Config screen; null if it's fine. */
+        fun problem(input: String): String? {
+            val t = input.trim()
+            if (t.isEmpty()) return "Enter the printer's address"
+            if (t.contains('%') || t.lowercase().removePrefix("[").startsWith("fe80:")) {
+                return "Link-local IPv6 (fe80::) can't be used. Use the printer's IPv4, its Tailscale or home IPv6 address, or its name."
+            }
+            return if (normalise(t) == null) "That doesn't look like a valid address" else null
+        }
+
+        private fun normalise(input: String): String? {
+            var rest = input.trim().trimEnd('/')
+            if (rest.isEmpty()) return null
+            var scheme = "http"
+            if (rest.contains("://")) {
+                scheme = rest.substringBefore("://").lowercase()
+                rest = rest.substringAfter("://")
+                if (scheme != "http" && scheme != "https") return null
+            }
+            val authority = rest.substringBefore('/')
+            val path = rest.substring(authority.length).trimEnd('/')
+            val hostPort = when {
+                authority.startsWith("[") -> authority.takeIf { "]" in it }
+                authority.count { it == ':' } >= 2 -> "[$authority]" // bare IPv6, no port
+                else -> authority
+            } ?: return null
+            if ('%' in hostPort) return null // zone IDs (link-local) aren't supported by OkHttp
+            val url = "$scheme://$hostPort$path"
+            return url.takeIf { it.toHttpUrlOrNull() != null }
         }
 
         fun encodePath(path: String): String =
