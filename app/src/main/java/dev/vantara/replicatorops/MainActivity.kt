@@ -1,6 +1,10 @@
 package dev.vantara.replicatorops
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import androidx.activity.viewModels
+import androidx.core.content.IntentCompat
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -11,7 +15,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.vantara.replicatorops.ui.AppViewModel
 import dev.vantara.replicatorops.ui.SIDEBAR_SCREENS
 import dev.vantara.replicatorops.ui.Screen
@@ -23,6 +26,7 @@ import dev.vantara.replicatorops.ui.screens.CaptainsLogDialog
 import dev.vantara.replicatorops.ui.screens.ConfigScreen
 import dev.vantara.replicatorops.ui.screens.ControlScreen
 import dev.vantara.replicatorops.ui.screens.FilesScreen
+import dev.vantara.replicatorops.ui.screens.LoadPatternDialog
 import dev.vantara.replicatorops.ui.screens.LogScreen
 import dev.vantara.replicatorops.ui.screens.StoresScreen
 import dev.vantara.replicatorops.ui.screens.UplinkAlert
@@ -31,14 +35,31 @@ import dev.vantara.replicatorops.ui.screens.stateLabel
 import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
+    private val vm: AppViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleIncoming(intent)
         setContent {
-            val vm: AppViewModel = viewModel()
             val style by vm.style.collectAsState()
             LcarsTheme(style) { App(vm) }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIncoming(intent)
+    }
+
+    /** Share → Replicator Ops, or "Open with", hands us a file to Load pattern. */
+    private fun handleIncoming(intent: Intent?) {
+        val uri: Uri? = when (intent?.action) {
+            Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+            Intent.ACTION_VIEW -> intent.data
+            else -> null
+        }
+        uri?.let { vm.receivePattern(it) }
     }
 }
 
@@ -77,6 +98,7 @@ private fun App(vm: AppViewModel) {
 
     CaptainsLogDialog(vm)
     UplinkAlert(vm)
+    LoadPatternDialog(vm)
 }
 
 /** Stardate as year + day of month, then month: 22 Nov 2026 -> "202622.11". */

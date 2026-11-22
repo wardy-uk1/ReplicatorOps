@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.3.5
+- Load pattern: send sliced .gcode and .gcode.3mf files to the printer from the Files screen
+- Share → Replicator Ops (or Open with) from Files, Chrome, Drive, email and chat apps
+- After uploading, the pattern's details open so you can Replicate it
+- STL and unsliced 3MF files show "Pattern requires slicing" with what to do next
+
 ## 0.3.4 · Stardate 202622.11
 - Pinch to zoom on model pictures in File details and on the camera view
 - Drag to look around while zoomed; double-tap to zoom in on a spot or reset

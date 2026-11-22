@@ -14,6 +14,10 @@ import dev.vantara.replicatorops.data.StoresRepo
 import dev.vantara.replicatorops.data.TempSample
 import dev.vantara.replicatorops.data.StarbaseUplink
 import dev.vantara.replicatorops.data.CaptainsLog
+import dev.vantara.replicatorops.data.IncomingPattern
+import dev.vantara.replicatorops.data.PatternKind
+import dev.vantara.replicatorops.data.PatternLoader
+import android.net.Uri
 import dev.vantara.replicatorops.data.LogEntry
 import dev.vantara.replicatorops.data.Upgrade
 import dev.vantara.replicatorops.BuildConfig
@@ -71,6 +75,17 @@ sealed interface UplinkState {
     data class Downloading(val upgrade: Upgrade, val progress: Float) : UplinkState
     data class Ready(val upgrade: Upgrade, val file: File) : UplinkState
     data class Failed(val message: String, val upgrade: Upgrade?) : UplinkState
+}
+
+/** Load pattern (upload) state. */
+sealed interface LoadState {
+    data object Idle : LoadState
+    data object Receiving : LoadState
+    data class Ready(val pattern: IncomingPattern) : LoadState
+    data class NeedsSlicing(val pattern: IncomingPattern) : LoadState
+    data class Unsupported(val name: String) : LoadState
+    data class Uploading(val pattern: IncomingPattern, val progress: Float) : LoadState
+    data class Failed(val message: String, val pattern: IncomingPattern?) : LoadState
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -158,6 +173,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _logPopup = MutableStateFlow<List<LogEntry>>(emptyList())
     /** Entries to show in the Captain's Log pop-up; empty = hidden. */
     val logPopup: StateFlow<List<LogEntry>> = _logPopup.asStateFlow()
+
+    // ---- Load pattern ---------------------------------------------------------------
+
+    private val loader = PatternLoader(app, http)
+    private val _loadState = MutableStateFlow<LoadState>(LoadState.Idle)
+    val loadState: StateFlow<LoadState> = _loadState.asStateFlow()
+    private val _openFile = MutableStateFlow<GcodeFile?>(null)
+    /** A just-uploaded file whose details (with Replicate) the Files screen should open. */
+    val openFile: StateFlow<GcodeFile?> = _openFile.asStateFlow()
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
@@ -561,6 +585,70 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         uplink.openReleasePage(page)
     }
+
+    // ---- Load pattern ---------------------------------------------------------------
+
+    /** A file arrived from the picker or Android's share menu. */
+    fun receivePattern(uri: Uri) {
+        viewModelScope.launch {
+            _loadState.value = LoadState.Receiving
+            runCatching { loader.receive(uri) }
+                .onSuccess { p ->
+                    _loadState.value = when (p.kind) {
+                        PatternKind.SLICED -> LoadState.Ready(p)
+                        PatternKind.NEEDS_SLICING -> LoadState.NeedsSlicing(p).also { Chirp.deny() }
+                        PatternKind.UNSUPPORTED -> LoadState.Unsupported(p.name).also { Chirp.deny() }
+                    }
+                }
+                .onFailure { e ->
+                    _loadState.value = LoadState.Failed(e.message ?: "Couldn't read that file", null)
+                    Chirp.deny()
+                }
+        }
+    }
+
+    /** Beam to printer: upload, then open the file's details so it can be replicated. */
+    fun beamPattern() {
+        val p = when (val st = _loadState.value) {
+            is LoadState.Ready -> st.pattern
+            is LoadState.Failed -> st.pattern
+            else -> null
+        } ?: return
+        val ep = client.endpoint
+        if (ep == null || !printer.value.online) {
+            _loadState.value = LoadState.Failed("Printer offline. Connect in Config, then try again.", p)
+            Chirp.deny()
+            return
+        }
+        viewModelScope.launch {
+            _loadState.value = LoadState.Uploading(p, 0f)
+            runCatching { loader.upload(ep, p) { pr -> _loadState.value = LoadState.Uploading(p, pr) } }
+                .onSuccess { path ->
+                    _loadState.value = LoadState.Idle
+                    p.file.delete()
+                    Chirp.confirm()
+                    say("Pattern stored: $path")
+                    refreshFiles()
+                    select(Screen.FILES)
+                    _openFile.value = GcodeFile(path, System.currentTimeMillis() / 1000.0, p.size)
+                    // Moonraker reads the file's metadata just after upload; fetch it, then again shortly after.
+                    loadMeta(path, force = true)
+                    delay(2500)
+                    loadMeta(path, force = true)
+                }
+                .onFailure { e ->
+                    _loadState.value = LoadState.Failed("Transport failed: ${e.message ?: "upload error"}", p)
+                    Chirp.deny()
+                }
+        }
+    }
+
+    fun dismissLoad() {
+        (_loadState.value as? LoadState.Ready)?.pattern?.file?.delete()
+        _loadState.value = LoadState.Idle
+    }
+
+    fun openFileHandled() { _openFile.value = null }
 
     companion object {
         const val TEMP_SAMPLES = 900

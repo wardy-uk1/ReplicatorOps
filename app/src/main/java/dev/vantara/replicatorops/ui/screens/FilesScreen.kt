@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -63,14 +65,27 @@ fun FilesScreen(vm: AppViewModel) {
     var selectedFile by remember { mutableStateOf<GcodeFile?>(null) }
     var deleting by remember { mutableStateOf<GcodeFile?>(null) }
 
+    // Load pattern: pick a file on the phone (sharing from other apps arrives the same way).
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { vm.receivePattern(it) }
+    }
+    // A pattern was just beamed up: open its details so it can be replicated.
+    val justLoaded by vm.openFile.collectAsState()
+    LaunchedEffect(justLoaded) {
+        justLoaded?.let { selectedFile = it; vm.openFileHandled() }
+    }
+
     Column(Modifier.fillMaxSize()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { LcarsSectionHeader("Pattern buffer", color = s.nav[1]) }
-            Spacer(Modifier.width(8.dp))
+        LcarsSectionHeader("Pattern buffer", color = s.nav[1])
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LcarsButton("Load pattern", color = s.accent, height = 36.dp, enabled = p.online) {
+                picker.launch(arrayOf("*/*"))
+            }
             LcarsButton(if (loading) "Scanning" else "Refresh", color = s.nav[1], enabled = p.online && !loading, height = 36.dp) {
                 vm.refreshFiles()
             }
         }
+        Spacer(Modifier.height(6.dp))
         LcarsLabel("${files.size} patterns stored", color = s.accent2, size = 14.sp)
         Spacer(Modifier.height(6.dp))
 
