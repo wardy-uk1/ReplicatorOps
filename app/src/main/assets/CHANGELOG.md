@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.3.5
+## 0.3.5 · Stardate 202622.11
 - Load pattern: send sliced .gcode and .gcode.3mf files to the printer from the Files screen
 - Share → Replicator Ops (or Open with) from Files, Chrome, Drive, email and chat apps
 - After uploading, the pattern's details open so you can Replicate it
