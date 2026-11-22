@@ -351,7 +351,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun boxLoad(slot: Int) = gcode("M109 S${boxTemp()}\nEXTRUDER_LOAD SLOT=slot$slot", "Loading slot ${slot + 1}")
-    fun boxUnload(slot: Int) = gcode("M109 S${boxTemp()}\nEXTRUDER_UNLOAD SLOT=slot$slot", "Unloading slot ${slot + 1}")
+    /**
+     * Unload: the printer's own M603 routine (same as its touchscreen). It heats the nozzle and
+     * pulls the filament out of the toolhead, leaving the spool in its Box slot.
+     */
+    fun boxUnload() = gcode("M603 S${boxTemp()}", "Unloading filament from the nozzle")
+
+    /** Eject: runs the filament for this slot all the way out of the Box (EXTRUDER_UNLOAD). */
+    fun boxEject(slot: Int) = gcode("M109 S${boxTemp()}\nEXTRUDER_UNLOAD SLOT=slot$slot", "Ejecting slot ${slot + 1}")
     fun boxReadRfid(slot: Int) {
         // Don't send a tag read to an empty slot; the printer would just report nothing.
         val reported = printer.value.box?.slots?.getOrNull(slot)

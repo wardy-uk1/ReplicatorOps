@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,9 +9,9 @@ plugins {
 
 // One fixed signing key for every build, so in-app updates (Starbase Uplink) install over the top.
 // CI: SIGNING_KEYSTORE_FILE + passwords from repo secrets. Local: optional keystore.properties (git-ignored).
-val keystoreProps = java.util.Properties().apply {
+val keystoreProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
+    if (f.exists()) f.inputStream().use { stream -> this.load(stream) }
 }
 fun signingValue(env: String, prop: String): String? = System.getenv(env) ?: keystoreProps.getProperty(prop)
 val signingStoreFile = signingValue("SIGNING_KEYSTORE_FILE", "storeFile")?.let { rootProject.file(it) }?.takeIf { it.exists() }

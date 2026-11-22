@@ -33,6 +33,7 @@ import dev.vantara.replicatorops.ui.AppViewModel
 import dev.vantara.replicatorops.ui.lcars.Chirp
 import dev.vantara.replicatorops.ui.lcars.LcarsButton
 import dev.vantara.replicatorops.ui.lcars.LcarsChip
+import dev.vantara.replicatorops.ui.lcars.LcarsConfirm
 import dev.vantara.replicatorops.ui.lcars.LcarsLabel
 import dev.vantara.replicatorops.ui.lcars.LcarsSectionHeader
 import dev.vantara.replicatorops.ui.lcars.LocalLcars
@@ -50,6 +51,7 @@ fun BoxSection(vm: AppViewModel, canAct: Boolean) {
     val spools by vm.spools.collectAsState()
     var selected by remember { mutableStateOf(0) }
     var editing by remember { mutableStateOf<Int?>(null) }
+    var confirmEject by remember { mutableStateOf(false) }
 
     LcarsSectionHeader("Filament bay · QIDI Box", color = s.nav[3])
     val box = p.box
@@ -110,8 +112,19 @@ fun BoxSection(vm: AppViewModel, canAct: Boolean) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LcarsButton("Edit slot ${selected + 1}", color = s.accent, height = 38.dp) { editing = selected }
         LcarsButton("Load", color = s.nav[0], height = 38.dp, enabled = canAct) { vm.boxLoad(selected) }
-        LcarsButton("Unload", color = s.nav[2], height = 38.dp, enabled = canAct) { vm.boxUnload(selected) }
+        LcarsButton("Unload", color = s.nav[2], height = 38.dp, enabled = canAct) { vm.boxUnload() }
+        LcarsButton("Eject ${selected + 1}", color = s.alert, height = 38.dp, enabled = canAct) { confirmEject = true }
         LcarsButton("Read tag", color = s.nav[3], height = 38.dp, enabled = canAct) { vm.boxReadRfid(selected) }
+    }
+
+    if (confirmEject) {
+        LcarsConfirm(
+            title = "Eject slot ${selected + 1}?",
+            text = "Runs this slot's filament all the way out of the Box so you can remove the spool. To just clear the nozzle, use Unload.",
+            confirmLabel = "Eject",
+            onConfirm = { confirmEject = false; vm.boxEject(selected) },
+            onDismiss = { confirmEject = false },
+        )
     }
 
     editing?.let { slot ->

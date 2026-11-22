@@ -22,7 +22,7 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 
 - **Status:** LCARS line drawing of the Q2C with nozzle, bed and chamber temperatures beside it, fan speeds, current print (thumbnail, %, layer, time left), a 30-minute temperature graph, and a Camera button
 - **Control:** pause/resume/cancel, heater targets and presets, fan, speed and flow, moving the axes, G-code console, emergency stop
-- **Filament bay (QIDI Box):** four slots with colour, type and grams left, plus the Box temperature and humidity. **Edit slot** sets each slot's type and colour, or links it to a spool. Load, Unload and Read tag buttons
+- **Filament bay (QIDI Box):** four slots with colour, type and grams left, plus the Box temperature and humidity. **Edit slot** sets each slot's type and colour, or links it to a spool. Load, Unload, Eject and Read tag buttons
 - **Replicator stores** (from Control): your spool list with search, add/edit/delete, colour, type, brand, weight, Box slot and "in use". Grams come off automatically when a print ends
 - **Files:** thumbnail grid, details, start print, delete
 - **Mission log** (from Files): print history from Moonraker with Day/Week/Month/Year/All, success rate, print time, filament by type and recent prints
@@ -34,7 +34,7 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 Mapped from the Q2C's own config and Box firmware modules (`box_extras`, `box_stepper`):
 - **Reads (checked live on a Q2C):** `box_extras.boxes[0]` → `aht20_temp`, `aht20_humidity`, `box_target_temp`, `box_inserted_N`, and `filament_info[N]` (`filament_type`, `filament_str`, `color_rgb_str`, `vendor_str`); `box_extras.loaded_slot`. Falls back to `save_variables` (`slotN`, `color_slotN`, `filament_slotN`). Dryer = `heater_generic heater_box1`. Filament ID `QFA00` = QIDI PLA Basic.
 - **Part fan:** QIDI uses `fan_generic cooling_fan`, so the slider sends `SET_FAN_SPEED FAN=cooling_fan`.
-- **Commands:** Load = `M109` to print temperature then `EXTRUDER_LOAD SLOT=slotN`; Unload = `M109` then `EXTRUDER_UNLOAD SLOT=slotN`; Read tag = `SLOT_RFID_READ SLOT=slotN` (N = 0–3). All three, plus Edit slot colour write-back, are tested on a Q2C with a QIDI Box.
+- **Commands:** Load = `M109` to print temperature then `EXTRUDER_LOAD SLOT=slotN`; Unload = `M603 S<temp>` (the printer's own unload: clears the nozzle, spool stays in its slot); Eject = `M109` then `EXTRUDER_UNLOAD SLOT=slotN` (runs the filament out of the Box); Read tag = `SLOT_RFID_READ SLOT=slotN` (N = 0–3). Load, Eject, Read tag and Edit slot colour write-back are tested on a Q2C with a QIDI Box.
 - **Edit slot:** the colour is written to the printer with `SAVE_VARIABLE VARIABLE=color_slotN VALUE="['RRGGBB']"`, which is where the Box firmware reads it. The type stays on the phone, because the printer stores QIDI filament codes and the code list isn't on the printer.
 - Config → Diagnostics shows every Box field the printer reports.
 
