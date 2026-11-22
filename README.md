@@ -27,6 +27,7 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 - **Files:** thumbnail grid, details, start print, delete
 - **Mission log** (from Files): print history from Moonraker with Day/Week/Month/Year/All, success rate, print time, filament by type and recent prints
 - **Config:** 24th/25th Century styles, chirps, address/API key, diagnostics, plus raw QIDI Box data
+- **Starbase Uplink:** checks GitHub Releases when the app opens (alert chirp if a newer build exists) or on demand, then downloads it with a progress bar and opens Android's installer
 
 ### QIDI Box on the Q2C
 
@@ -44,6 +45,8 @@ Mapped from the Q2C's own config and Box firmware modules (`box_extras`, `box_st
 3. Let it sync (Gradle 8.11.1, AGP 8.7.3, Kotlin 2.0.21), then run on a phone with Android 8.0 or later.
 
 From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleDebug` gives `app/build/outputs/apk/debug/app-debug.apk`.
+
+**Signing:** every build is signed with one fixed key so Starbase Uplink can install updates over the top. CI reads it from the `SIGNING_KEYSTORE_B64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD` secrets; local builds can use a git-ignored `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Without the key, CI still builds but won't publish a release.
 
 **Automatic builds:** GitHub Actions builds the APK on every push (download it from the run's *Artifacts*). Raising `versionName` in `app/build.gradle.kts` and pushing to `main` publishes a new release with the APK attached.
 

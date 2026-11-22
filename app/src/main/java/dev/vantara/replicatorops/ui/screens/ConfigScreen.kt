@@ -111,9 +111,11 @@ fun ConfigScreen(vm: AppViewModel) {
             }
         }
 
+        UplinkSection(vm)
+
         LcarsSectionHeader("About", color = s.dim)
         LcarsLabel(
-            "Replicator Ops 0.1 · open-source Moonraker client. Not affiliated with QIDI Tech or Paramount.",
+            "Replicator Ops ${vm.appVersion} · open-source Moonraker client. Not affiliated with QIDI Tech or Paramount.",
             color = s.accent2, size = 13.sp, maxLines = 4,
         )
         Spacer(Modifier.height(24.dp))

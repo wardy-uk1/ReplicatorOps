@@ -24,6 +24,7 @@ import dev.vantara.replicatorops.ui.screens.ControlScreen
 import dev.vantara.replicatorops.ui.screens.FilesScreen
 import dev.vantara.replicatorops.ui.screens.LogScreen
 import dev.vantara.replicatorops.ui.screens.StoresScreen
+import dev.vantara.replicatorops.ui.screens.UplinkAlert
 import dev.vantara.replicatorops.ui.screens.StatusScreen
 import dev.vantara.replicatorops.ui.screens.stateLabel
 import java.time.LocalDate
@@ -72,6 +73,8 @@ private fun App(vm: AppViewModel) {
             Screen.LOG -> LogScreen(vm)
         }
     }
+
+    UplinkAlert(vm)
 }
 
 /** Stardate as year + day of month, then month: 22 Nov 2026 -> "202622.11". */

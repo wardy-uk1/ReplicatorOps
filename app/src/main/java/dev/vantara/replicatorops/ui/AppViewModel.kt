@@ -12,6 +12,10 @@ import dev.vantara.replicatorops.data.SlotInfo
 import dev.vantara.replicatorops.data.Spool
 import dev.vantara.replicatorops.data.StoresRepo
 import dev.vantara.replicatorops.data.TempSample
+import dev.vantara.replicatorops.data.StarbaseUplink
+import dev.vantara.replicatorops.data.Upgrade
+import dev.vantara.replicatorops.BuildConfig
+import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.ui.lcars.Chirp
@@ -55,6 +59,17 @@ enum class Screen(val label: String) {
 val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.FILES, Screen.CONFIG)
 
 enum class LogPeriod(val label: String, val days: Int?) { DAY("Day", 1), WEEK("Week", 7), MONTH("Month", 30), YEAR("Year", 365), ALL("All", null); }
+
+/** Starbase Uplink (in-app updates) state. */
+sealed interface UplinkState {
+    data object Idle : UplinkState
+    data object Checking : UplinkState
+    data object Current : UplinkState
+    data class Available(val upgrade: Upgrade) : UplinkState
+    data class Downloading(val upgrade: Upgrade, val progress: Float) : UplinkState
+    data class Ready(val upgrade: Upgrade, val file: File) : UplinkState
+    data class Failed(val message: String, val upgrade: Upgrade?) : UplinkState
+}
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -124,12 +139,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _historyLoading = MutableStateFlow(false)
     val historyLoading: StateFlow<Boolean> = _historyLoading.asStateFlow()
 
+    // ---- Starbase Uplink ----------------------------------------------------------
+
+    val appVersion: String = BuildConfig.VERSION_NAME
+    private val uplink = StarbaseUplink(app, http)
+    private val _uplinkState = MutableStateFlow<UplinkState>(UplinkState.Idle)
+    val uplinkState: StateFlow<UplinkState> = _uplinkState.asStateFlow()
+    private val _uplinkAlert = MutableStateFlow(false)
+    /** True when the launch check found an upgrade and the alert dialog should show. */
+    val uplinkAlert: StateFlow<Boolean> = _uplinkAlert.asStateFlow()
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
 
     init {
         Chirp.enabled = prefs.chirps
         prefs.endpoint()?.let { client.connect(it) }
+        viewModelScope.launch {
+            delay(1500)
+            checkUplink(silent = true)
+        }
 
         viewModelScope.launch {
             printer.map { it.connection == Connection.CONNECTED }.distinctUntilChanged().collect { online ->
@@ -422,6 +451,82 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 .onFailure { say("Couldn't load history: ${it.message}") }
             _historyLoading.value = false
         }
+    }
+
+    // ---- Starbase Uplink ----------------------------------------------------------
+
+    /** Ask GitHub Releases for a newer build. Silent checks only speak up when one is found. */
+    fun checkUplink(silent: Boolean = false) {
+        if (_uplinkState.value is UplinkState.Checking || _uplinkState.value is UplinkState.Downloading) return
+        viewModelScope.launch {
+            if (!silent) _uplinkState.value = UplinkState.Checking
+            runCatching { uplink.check(appVersion) }
+                .onSuccess { up ->
+                    if (up != null) {
+                        _uplinkState.value = UplinkState.Available(up)
+                        if (silent) {
+                            _uplinkAlert.value = true
+                            Chirp.alert()
+                        } else {
+                            Chirp.confirm()
+                        }
+                    } else {
+                        _uplinkState.value = if (silent) UplinkState.Idle else UplinkState.Current
+                        if (!silent) Chirp.tap()
+                    }
+                }
+                .onFailure { e ->
+                    if (!silent) {
+                        _uplinkState.value = UplinkState.Failed("Uplink failed: ${e.message ?: "no signal"}", null)
+                        Chirp.deny()
+                    }
+                }
+        }
+    }
+
+    fun dismissUplinkAlert() { _uplinkAlert.value = false }
+
+    /** Download (if needed) and hand the upgrade to Android's installer. */
+    fun installUpgrade() {
+        _uplinkAlert.value = false
+        val st = _uplinkState.value
+        val upgrade = when (st) {
+            is UplinkState.Available -> st.upgrade
+            is UplinkState.Ready -> st.upgrade
+            is UplinkState.Failed -> st.upgrade
+            else -> null
+        } ?: return
+        if (!uplink.canInstall()) {
+            say("Allow installs from Replicator Ops, then tap Install again")
+            uplink.openInstallPermission()
+            return
+        }
+        if (st is UplinkState.Ready && st.file.exists()) {
+            uplink.install(st.file)
+            return
+        }
+        viewModelScope.launch {
+            _uplinkState.value = UplinkState.Downloading(upgrade, 0f)
+            runCatching { uplink.download(upgrade) { p -> _uplinkState.value = UplinkState.Downloading(upgrade, p) } }
+                .onSuccess { file ->
+                    _uplinkState.value = UplinkState.Ready(upgrade, file)
+                    Chirp.confirm()
+                    uplink.install(file)
+                }
+                .onFailure { e ->
+                    _uplinkState.value = UplinkState.Failed("Transmission lost: ${e.message ?: "download failed"}", upgrade)
+                    Chirp.deny()
+                }
+        }
+    }
+
+    fun openReleaseNotes() {
+        val page = when (val st = _uplinkState.value) {
+            is UplinkState.Available -> st.upgrade.pageUrl
+            is UplinkState.Ready -> st.upgrade.pageUrl
+            else -> StarbaseUplink.RELEASES_PAGE
+        }
+        uplink.openReleasePage(page)
     }
 
     companion object {
