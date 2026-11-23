@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.0.0
+## 2.0.0 · Stardate 202623.11
 - New Slicer tab: slice STL and 3MF files (MakerWorld, Printables…) right on the phone, offline, with CuraEngine, the engine inside Ultimaker Cura. Then send them straight to the printer
 - 3MF projects keep their plates, objects and settings from OrcaSlicer, QIDI Studio or Bambu Studio: layer height, walls, infill, supports, temperatures, speeds, seam and ironing
 - Adjust filament, temperatures, layer height, walls, infill pattern, seam, ironing, supports (normal or organic tree) and brim before slicing, with a 3D viewscreen you can turn and zoom
