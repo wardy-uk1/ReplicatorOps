@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 1.1.0-beta.1
+## 1.1.0-beta.1 · Stardate 202623.11
 - Replicator Ops Beta: a separate app that installs next to the normal one
 - New Slicer tab: slice STL and 3MF files (MakerWorld, Printables…) right on the phone, offline, with the Kiri:Moto engine
 - 3MF projects keep their plates, objects and settings (layer height, walls, infill, supports, temperatures, speeds) from OrcaSlicer, QIDI Studio or Bambu Studio
