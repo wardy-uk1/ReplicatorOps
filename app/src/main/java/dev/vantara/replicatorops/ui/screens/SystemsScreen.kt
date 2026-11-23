@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -210,7 +211,10 @@ private fun BedMeshSection(vm: AppViewModel) {
     if (mesh == null) {
         LcarsLabel("No bed mesh loaded. Calibrate to measure the bed.", color = s.hint, size = 14.sp, maxLines = 2)
     } else {
-        BedMeshView(mesh, Modifier.fillMaxWidth())
+        // Keep the map a sensible size on wide tablets and landscape.
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            BedMeshView(mesh, Modifier.widthIn(max = 460.dp).fillMaxWidth())
+        }
     }
     Spacer(Modifier.height(8.dp))
     LcarsButton("Calibrate bed mesh", color = s.nav[0], height = 38.dp, enabled = p.ready && !p.isBusy) { confirm = true }

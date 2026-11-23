@@ -90,7 +90,7 @@ fun TimelapseScreen(vm: AppViewModel) {
         }
         Spacer(Modifier.height(8.dp))
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(130.dp),
+            columns = GridCells.Adaptive(118.dp),
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
