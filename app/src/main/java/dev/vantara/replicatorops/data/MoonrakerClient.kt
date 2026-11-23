@@ -455,6 +455,12 @@ class MoonrakerClient(
             humidity = firstBox.d("aht20_humidity") ?: boxHeater.d("humidity"),
             target = firstBox.d("box_target_temp") ?: boxHeater.d("target"),
             activeSlot = active?.takeIf { it in 0..3 },
+            toolMap = vars.orEmpty().mapNotNull { (k, v) ->
+                val tool = TOOL_VAR.find(k)?.groupValues?.get(1)?.toIntOrNull() ?: return@mapNotNull null
+                val slot = (v as? JsonPrimitive)?.contentOrNull?.let { LOADED_SLOT.find(it.trim('\'', '"'))?.groupValues?.get(1)?.toIntOrNull() }
+                    ?: return@mapNotNull null
+                tool to slot
+            }.toMap(),
         )
         return box to raw
     }
@@ -518,8 +524,18 @@ class MoonrakerClient(
             ?.s("relative_path")
         val dir = path.substringBeforeLast('/', "")
         val thumbUrl = thumb?.let { ep.gcodeFileUrl(if (dir.isEmpty()) it else "$dir/$it") }
+        val types = m.s("filament_type")?.split(';')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+        val colours = when (val c = m["filament_colors"]) {
+            is JsonArray -> c.map { (it as? JsonPrimitive)?.contentOrNull?.let(::parseColor) }
+            is JsonPrimitive -> c.contentOrNull?.split(';')?.map { parseColor(it) }.orEmpty()
+            else -> emptyList()
+        }
+        val tools = (m["referenced_tools"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.intOrNull }.orEmpty()
         return FileMeta(
             thumbnailUrl = thumbUrl,
+            filamentTypes = types,
+            filamentColors = colours,
+            tools = tools,
             estimatedSeconds = m.d("estimated_time"),
             filamentMm = m.d("filament_total"),
             filamentGrams = m.d("filament_weight_total"),
@@ -620,7 +636,8 @@ class MoonrakerClient(
 
     companion object {
         private val SLOT_KEY = Regex("slot_?[0-3]")
-        private val LOADED_SLOT = Regex("""^slot(\d)$""")
+        private val LOADED_SLOT = Regex("""^slot(\d+)$""")
+        private val TOOL_VAR = Regex("""^value_t(\d+)$""")
         private val VIDEO_EXT = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov")
         private val IMAGE_EXT = listOf(".jpg", ".jpeg", ".png")
         /** QIDI filament codes like QFA00 aren't display names. */

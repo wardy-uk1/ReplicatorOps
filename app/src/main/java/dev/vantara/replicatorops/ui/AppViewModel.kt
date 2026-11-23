@@ -25,6 +25,7 @@ import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.data.PrinterAlert
+import dev.vantara.replicatorops.data.FilamentMapping
 import dev.vantara.replicatorops.data.PrinterProfile
 import dev.vantara.replicatorops.data.ReplicationQueue
 import android.speech.tts.TextToSpeech
@@ -460,7 +461,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (printer.value.isBusy) { Chirp.deny(); say("Replicator is busy"); return }
         val next = queueStore.pop() ?: run { say("The replication queue is empty"); return }
         viewModelScope.launch {
-            runCatching { client.call("printer.print.start", buildJsonObject { put("filename", next) }) }
+            runCatching {
+                autoMap(next)
+                client.call("printer.print.start", buildJsonObject { put("filename", next) })
+            }
                 .onSuccess { Chirp.confirm(); say("Replicating ${next.substringAfterLast('/')}") }
                 .onFailure { e -> queueStore.pushFront(next); Chirp.deny(); say(e.message ?: "Couldn't start the next print") }
         }
@@ -717,6 +721,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startPrint(path: String) = action("Print started") {
+        client.call("printer.print.start", buildJsonObject { put("filename", path) })
+    }
+
+    /** Queued prints: pick Box slots automatically (same type, closest colour). */
+    private suspend fun autoMap(path: String) {
+        val box = printer.value.box ?: return
+        val needs = FilamentMapping.needs(runCatching { client.metadata(path) }.getOrNull())
+        val map = FilamentMapping.suggest(needs, box.slots, box.toolMap)
+        if (map.isNotEmpty()) client.gcode(FilamentMapping.gcode(map))
+    }
+
+    /** Sets which Box slot feeds each filament, then starts the print. */
+    fun startPrintMapped(path: String, map: Map<Int, Int>) = action("Print started") {
+        if (map.isNotEmpty()) client.gcode(FilamentMapping.gcode(map))
         client.call("printer.print.start", buildJsonObject { put("filename", path) })
     }
 

@@ -66,6 +66,7 @@ fun FilesScreen(vm: AppViewModel) {
     var selectedFile by remember { mutableStateOf<GcodeFile?>(null) }
     var deleting by remember { mutableStateOf<GcodeFile?>(null) }
     var showQueue by remember { mutableStateOf(false) }
+    var mapping by remember { mutableStateOf<GcodeFile?>(null) }
 
     // Load pattern: pick a file on the phone (sharing from other apps arrives the same way).
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -123,12 +124,17 @@ fun FilesScreen(vm: AppViewModel) {
             meta = meta[f.path],
             vm = vm,
             canPrint = p.ready && !p.isBusy,
-            onPrint = { selectedFile = null; vm.startPrint(f.path) },
+            onPrint = {
+                selectedFile = null
+                // With a QIDI Box, check which slot feeds each filament first.
+                if (p.box?.slots?.any { it.loaded } == true) mapping = f else vm.startPrint(f.path)
+            },
             onDelete = { selectedFile = null; deleting = f },
             onDismiss = { selectedFile = null },
         )
     }
     if (showQueue) QueueDialog(vm) { showQueue = false }
+    mapping?.let { f -> MappingDialog(vm, f, meta[f.path]) { mapping = null } }
     deleting?.let { f ->
         LcarsConfirm(
             title = "Purge pattern?",

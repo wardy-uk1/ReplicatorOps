@@ -31,6 +31,8 @@ data class BoxState(
     val humidity: Double?,
     val target: Double?,
     val activeSlot: Int?,
+    /** QIDI's tool → slot map (save_variables value_tN = 'slotM'): which Box slot feeds each tool. */
+    val toolMap: Map<Int, Int> = emptyMap(),
 )
 
 /** One object on the build plate, from Klipper's exclude_object (Target lock). */
@@ -114,6 +116,12 @@ data class GcodeFile(
 
 data class FileMeta(
     val thumbnailUrl: String?,
+    /** Filaments the slicer set up, by tool number (T0, T1, …). */
+    val filamentTypes: List<String> = emptyList(),
+    /** ARGB per tool, or null where unknown. */
+    val filamentColors: List<Long?> = emptyList(),
+    /** Tool numbers the G-code actually uses (Moonraker's referenced_tools). */
+    val tools: List<Int> = emptyList(),
     val estimatedSeconds: Double?,
     val filamentMm: Double?,
     val filamentGrams: Double?,

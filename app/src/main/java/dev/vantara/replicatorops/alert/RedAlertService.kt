@@ -172,6 +172,11 @@ class RedAlertService : Service() {
         NotificationManagerCompat.from(this).cancel(ALERT_ID)
         val next = queue.pop() ?: return
         runCatching {
+            client.state.value.box?.let { box ->
+                val needs = dev.vantara.replicatorops.data.FilamentMapping.needs(runCatching { client.metadata(next) }.getOrNull())
+                val map = dev.vantara.replicatorops.data.FilamentMapping.suggest(needs, box.slots, box.toolMap)
+                if (map.isNotEmpty()) client.gcode(dev.vantara.replicatorops.data.FilamentMapping.gcode(map))
+            }
             client.call("printer.print.start", kotlinx.serialization.json.buildJsonObject {
                 put("filename", kotlinx.serialization.json.JsonPrimitive(next))
             })
