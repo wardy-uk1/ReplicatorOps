@@ -117,7 +117,7 @@ fun SlicerScreen(vm: AppViewModel) {
             SettingsPanel(settings, enabled = !busy, onReset = { vm.resetSliceSettings() }) { vm.setSliceSettings(it) }
 
             Spacer(Modifier.height(10.dp))
-            when (st) {
+            when (val st = state) {
                 is SliceState.Slicing -> {
                     LcarsLabel("${st.stage}… ${st.percent}%", color = s.accent, size = 15.sp)
                     LcarsProgress(st.percent / 100.0)
