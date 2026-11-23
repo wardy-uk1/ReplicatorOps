@@ -79,20 +79,22 @@ jobs:
             echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Test and build debug APK
+      - name: Test and build release APK
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew testDebugUnitTest assembleDebug --console=plain
+          ./gradlew testDebugUnitTest assembleRelease --console=plain
 
       - name: Name the APK
         id: apk
         run: |
-          name="ReplicatorOps-${{ steps.ver.outputs.version }}-debug.apk"
-          cp app/build/outputs/apk/debug/app-debug.apk "$name"
+          name="ReplicatorOps-${{ steps.ver.outputs.version }}.apk"
+          src=app/build/outputs/apk/release/app-release.apk
+          [ -f "$src" ] || src=app/build/outputs/apk/release/app-release-unsigned.apk
+          cp "$src" "$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
       - name: Upload build artifact

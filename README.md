@@ -60,11 +60,11 @@ Mapped from the Q2C's own config and Box firmware modules (`box_extras`, `box_st
 2. **Use JDK 17:** Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK → `jbr-17`. Kotlin 2.0.21 can't build with Android Studio's bundled Java 25.
 3. Let it sync (Gradle 8.11.1, AGP 8.7.3, Kotlin 2.0.21), then run on a phone with Android 8.0 or later.
 
-From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleDebug` gives `app/build/outputs/apk/debug/app-debug.apk`.
+From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleRelease` gives `app/build/outputs/apk/release/app-release.apk` (signed if the key is set up; see below). `assembleDebug` gives a debug build for development.
 
 **Signing:** every build is signed with one fixed key so Starbase Uplink can install updates over the top. CI reads it from the `SIGNING_KEYSTORE_B64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD` secrets; local builds can use a git-ignored `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Without the key, CI still builds but won't publish a release.
 
-**Automatic builds:** GitHub Actions runs the unit tests and builds the APK on every push (download it from the run's *Artifacts*).
+**Automatic builds:** GitHub Actions runs the unit tests and builds the signed release APK on every push (download it from the run's *Artifacts*). A separate Screenshots workflow renders the main screens on nine screen sizes and publishes them to the `screenshots` branch.
 
 **Releasing:** add a `## <version>` entry with `- ` bullets to [`CHANGELOG.md`](app/src/main/assets/CHANGELOG.md), raise `versionName`/`versionCode` in `app/build.gradle.kts`, and push to `main`. GitHub stamps the entry with the release date as a stardate (yyyyDD.MM), then builds, signs and publishes the release with that entry as its notes; the app shows the same entry as its Captain's Log after updating. A version with no log entry won't be released.
 

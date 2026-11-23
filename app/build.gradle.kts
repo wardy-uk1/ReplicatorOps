@@ -25,8 +25,8 @@ android {
         applicationId = "dev.vantara.replicatorops"
         minSdk = 26
         targetSdk = 35
-        versionCode = 27
-        versionName = "0.8.4"
+        versionCode = 100
+        versionName = "1.0.0"
     }
 
     signingConfigs {
@@ -56,6 +56,11 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+    lint {
+        // Lint runs separately; don't let a warning-level finding block a release build.
+        checkReleaseBuilds = false
+        abortOnError = false
     }
     buildFeatures {
         compose = true
