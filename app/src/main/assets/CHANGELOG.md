@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.3.8
+## 0.3.8 · Stardate 202623.11
 - Ship's chronometer: the bottom bar now shows the device time as "0811 hours" after the stardate, with a pulsing marker
 - The stardate now rolls over at midnight without restarting the app
 - Hint text (like the emergency stop note) is now easy to read in both LCARS styles
