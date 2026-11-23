@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 1.0.0
+## 1.0.0 · Stardate 202623.11
 - Replicator Ops 1.0: the first full release
 - Now built as a proper release version instead of a test (debug) build: smaller, faster and less likely to be flagged by Play Protect. Your settings, spools and printers carry over
 - In this release: live Status with camera, Control and QIDI Box, Ship systems with bed mesh and macros, Files with load/retrieve and the replication queue, Timelapse archive, Commands, Red Alert notifications with first-layer watch, Target lock, home screen widget, fleet registry, print costs, Sensor sweep and "Computer," voice commands
