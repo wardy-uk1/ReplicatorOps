@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.5.0
+## 0.5.0 · Stardate 202623.11
 - Home screen widget: status, progress bar, percentage, time left and file name. Stretch it to show more. Tap it to open the app. Live while Red Alert is on or the app is open, otherwise every 30 minutes
 - Timelapse archive: a new menu item listing the printer's timelapse videos. Watch them in the app, save to your phone, share or delete
 - Sensor sweep: finds printers on your Wi-Fi (QIDI's own discovery plus a network scan). Runs by itself on first launch, or tap Sensor sweep in Config, then Lock on
