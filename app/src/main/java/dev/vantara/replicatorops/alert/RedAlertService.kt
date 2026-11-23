@@ -79,6 +79,16 @@ class RedAlertService : Service() {
             client.connect(ep)
         }
         if (!watching) {
+            scope.launch {
+                var last = ""
+                var lastAt = 0L
+                client.alerts.collect { a ->
+                    val now = System.currentTimeMillis()
+                    if (a.raw == last && now - lastAt < 30_000) return@collect
+                    last = a.raw; lastAt = now
+                    postAlert(Alert("Red Alert: printer message", "${a.message} (${a.code})", severe = true))
+                }
+            }
             watching = true
             scope.launch {
                 var prev: PrinterState? = null

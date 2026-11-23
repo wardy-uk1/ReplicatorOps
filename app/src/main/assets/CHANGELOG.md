@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 1.0.1
+- Printer messages: when the printer shows a pop-up (like "Please load the filament to 1D first"), the app shows it as a Red Alert in plain words ("Box 1 slot 4"), and Red Alert sends it to your phone
+- Control: Bed ▲10 ▲1 ▼1 ▼10 buttons, like the printer's own screen
+- Control: air system fans (auxiliary, chamber, exhaust) each get a slider
+- "Motors off" is now called Unlock steppers, as on the printer
+
 ## 1.0.0 · Stardate 202623.11
 - Replicator Ops 1.0: the first full release
 - Now built as a proper release version instead of a test (debug) build: smaller, faster and less likely to be flagged by Play Protect. Your settings, spools and printers carry over

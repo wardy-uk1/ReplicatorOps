@@ -205,6 +205,23 @@ internal fun App(vm: AppViewModel) {
 
     CaptainsLogDialog(vm)
     if (picking) FleetPicker(vm) { picking = false }
+    val printerAlert by vm.printerAlert.collectAsState()
+    printerAlert?.let { a ->
+        AlertDialog(
+            onDismissRequest = { vm.dismissPrinterAlert() },
+            containerColor = Color.Black,
+            modifier = Modifier.border(2.dp, s.alert, RoundedCornerShape(24.dp)),
+            title = { LcarsLabel("Red Alert · printer message", color = s.alert, size = 20.sp, bold = true) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    LcarsLabel(a.message, color = s.text, size = 18.sp, maxLines = 6)
+                    Spacer(Modifier.height(8.dp))
+                    LcarsLabel("Code ${a.code}", color = s.hint, size = 13.sp)
+                }
+            },
+            confirmButton = { LcarsButton("Acknowledged", color = s.alert) { vm.dismissPrinterAlert() } },
+        )
+    }
     if (typing) TypedCommand(vm) { typing = false }
     val confirmAbort by vm.confirmAbort.collectAsState()
     if (confirmAbort) {

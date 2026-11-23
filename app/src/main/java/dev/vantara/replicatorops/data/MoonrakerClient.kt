@@ -64,6 +64,10 @@ class MoonrakerClient(
     private val _state = MutableStateFlow(PrinterState())
     val state: StateFlow<PrinterState> = _state.asStateFlow()
 
+    private val _alerts = MutableSharedFlow<PrinterAlert>(extraBufferCapacity = 8)
+    /** Pop-up messages from the printer (QIDI "Code:QDE_…" errors). */
+    val alerts: SharedFlow<PrinterAlert> = _alerts
+
     private val _fileListChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val fileListChanged: SharedFlow<Unit> = _fileListChanged
 
@@ -206,6 +210,9 @@ class MoonrakerClient(
                 scope.launch { delay(2000); runCatching { initialise() } }
             }
             "notify_filelist_changed" -> _fileListChanged.tryEmit(Unit)
+            "notify_gcode_response" -> (msg["params"] as? JsonArray)?.forEach { el ->
+                (el as? JsonPrimitive)?.contentOrNull?.let { line -> PrinterAlerts.parse(line)?.let { _alerts.tryEmit(it) } }
+            }
         }
     }
 

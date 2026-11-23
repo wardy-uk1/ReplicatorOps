@@ -24,6 +24,7 @@ import dev.vantara.replicatorops.BuildConfig
 import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
+import dev.vantara.replicatorops.data.PrinterAlert
 import dev.vantara.replicatorops.data.PrinterProfile
 import dev.vantara.replicatorops.data.ReplicationQueue
 import android.speech.tts.TextToSpeech
@@ -287,6 +288,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _reelState = MutableStateFlow<ReelState>(ReelState.Idle)
     val reelState: StateFlow<ReelState> = _reelState.asStateFlow()
 
+    private val _printerAlert = MutableStateFlow<PrinterAlert?>(null)
+    /** The latest pop-up from the printer, shown as an LCARS alert until acknowledged. */
+    val printerAlert: StateFlow<PrinterAlert?> = _printerAlert.asStateFlow()
+    fun dismissPrinterAlert() { _printerAlert.value = null }
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
 
@@ -325,6 +331,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch { client.fileListChanged.collect { refreshFiles() } }
+        viewModelScope.launch {
+            client.alerts.collect { a ->
+                if (_printerAlert.value?.raw != a.raw) Chirp.alert()
+                _printerAlert.value = a
+            }
+        }
         viewModelScope.launch {
             printer.map { it.filename }.distinctUntilChanged().collect { f -> if (!f.isNullOrBlank()) loadMeta(f, force = true) }
         }
@@ -755,7 +767,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setFlowFactor(percent: Int) = gcode("M221 S${percent.coerceIn(50, 150)}")
 
     fun home(axes: String = "") = gcode(if (axes.isBlank()) "G28" else "G28 $axes")
-    fun motorsOff() = gcode("M84", "Motors off")
+    fun motorsOff() = gcode("M84", "Steppers unlocked")
+
+    /** Bed up/down by [mm] (QIDI's Bed buttons). The Q2C bed moves on Z: up = towards the nozzle. */
+    fun moveBed(mm: Double) {
+        if ('z' !in printer.value.homedAxes.lowercase()) {
+            Chirp.deny(); say("Home Z first, then the bed can move"); return
+        }
+        gcode("G91\nG1 Z${-mm} F600\nG90")
+    }
+
+    /** Any fan_generic fan (Aux, Chamber, Exhaust…): 0–100 %. */
+    fun setFan(objectName: String, percent: Int) {
+        val name = objectName.removePrefix("fan_generic ").trim()
+        gcode("SET_FAN_SPEED FAN=$name SPEED=%.2f".format(percent.coerceIn(0, 100) / 100.0))
+    }
 
     fun jog(axis: Char, distance: Double) {
         val feed = if (axis == 'Z') 600 else 6000

@@ -114,7 +114,7 @@ fun ControlScreen(vm: AppViewModel) {
         LcarsLabel("Tap a heater to set its target", color = s.hint, size = 13.sp, modifier = Modifier.padding(top = 4.dp))
 
         // ---- Fan, speed, flow ----------------------------------------------
-        LcarsSectionHeader("Atmospherics", color = s.nav[1])
+        LcarsSectionHeader("Atmospherics · air system", color = s.nav[1])
         p.partFan?.let { fan ->
             var fanPct by remember { mutableFloatStateOf((fan * 100).toFloat()) }
             LaunchedEffect(fan) { fanPct = (fan * 100).toFloat() }
@@ -129,6 +129,23 @@ fun ControlScreen(vm: AppViewModel) {
                 valueRange = 0f..100f,
                 enabled = canAct,
                 colors = SliderDefaults.colors(thumbColor = s.accent, activeTrackColor = s.accent, inactiveTrackColor = s.dim),
+            )
+        }
+        // Air system: every other fan the printer reports (aux, chamber circulation, exhaust…).
+        p.fans.filter { it.label != "Part" && it.objectName.startsWith("fan_generic ") }.forEach { f ->
+            var pct by remember(f.objectName) { mutableFloatStateOf((f.speed * 100).toFloat()) }
+            LaunchedEffect(f.speed) { pct = (f.speed * 100).toFloat() }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LcarsLabel("${f.label} fan", color = s.accent2, size = 16.sp, modifier = Modifier.weight(1f))
+                LcarsLabel("${pct.toInt()}%", color = s.text, size = 20.sp)
+            }
+            Slider(
+                value = pct,
+                onValueChange = { pct = it },
+                onValueChangeFinished = { vm.setFan(f.objectName, pct.toInt()) },
+                valueRange = 0f..100f,
+                enabled = canAct,
+                colors = SliderDefaults.colors(thumbColor = s.nav[1], activeTrackColor = s.nav[1], inactiveTrackColor = s.dim),
             )
         }
         FactorRow("Speed", (p.speedFactor * 100).toInt(), canAct) { vm.setSpeedFactor(it) }
@@ -163,10 +180,21 @@ fun ControlScreen(vm: AppViewModel) {
                 LcarsButton("Z-", color = s.nav[1], enabled = canMove) { vm.jog('Z', -step.coerceAtMost(10.0)) }
             }
         }
+        Spacer(Modifier.height(10.dp))
+        // Bed up/down, like the printer's own Bed buttons.
+        LcarsLabel("Bed", color = s.accent2, size = 15.sp)
+        Spacer(Modifier.height(4.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LcarsButton("▲ 10", color = s.nav[2], enabled = canMove) { vm.moveBed(10.0) }
+            LcarsButton("▲ 1", color = s.nav[2], enabled = canMove) { vm.moveBed(1.0) }
+            LcarsButton("▼ 1", color = s.nav[2], enabled = canMove) { vm.moveBed(-1.0) }
+            LcarsButton("▼ 10", color = s.nav[2], enabled = canMove) { vm.moveBed(-10.0) }
+        }
+        LcarsLabel("▲ raises the bed towards the nozzle (mm). Home Z first.", color = s.hint, size = 12.sp, maxLines = 2)
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LcarsButton("Home all", color = s.accent, enabled = canMove) { vm.home() }
-            LcarsButton("Motors off", color = s.frameAlt, enabled = canMove) { vm.motorsOff() }
+            LcarsButton("Unlock steppers", color = s.frameAlt, enabled = canMove) { vm.motorsOff() }
         }
 
         // ---- Console -------------------------------------------------------
