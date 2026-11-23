@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.7.1
+## 0.7.1 · Stardate 202623.11
 - Landscape: the menu now scrolls (and its buttons shrink a little) when it doesn't fit, so every item can be reached
 - The title is no longer cut off at the top with the new font
 - Files and Timelapse show more columns when there's room (landscape and tablets)
