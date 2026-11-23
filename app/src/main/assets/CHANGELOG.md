@@ -4,6 +4,11 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 1.0.3
+- Filament check: pick from your spools. Tap Spools next to any filament to choose from Replicator stores, with grams left. Spools linked to a Box slot can be picked
+- Filament check: use any filament you like. A different type or colour from the file is now just a note, not a warning. Only an empty slot stops you
+- Each slot shows how many grams its spool has left, and single-filament prints warn if the spool may run out
+
 ## 1.0.2 · Stardate 202623.11
 - Filament check before printing: tapping Replicate shows the filaments the file needs and lets you choose which QIDI Box slot feeds each one, like QIDI Studio. Empty or mismatched slots are flagged, so prints no longer stop with "Please load the filament to 1D first"
 - The app suggests a slot for you: it keeps the printer's last choice if that slot is loaded with the right type, otherwise picks the closest colour of the same type

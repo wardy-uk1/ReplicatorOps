@@ -30,6 +30,12 @@ class FilamentMappingTest {
         assertTrue(FilamentMapping.problems(needs, slots, mapOf(1 to 3)).first().contains("empty"))
     }
 
+    @Test fun differentTypeIsOnlyANote() {
+        val needs = listOf(ToolNeed(0, "PETG", null))
+        assertTrue(FilamentMapping.problems(needs, slots, mapOf(0 to 0)).isEmpty())
+        assertTrue(FilamentMapping.notes(needs, slots, mapOf(0 to 0)).first().contains("PETG"))
+    }
+
     @Test fun silkCountsAsPla() = assertTrue(FilamentMapping.sameType("PLA Silk", "PLA"))
 
     @Test fun gcodeMatchesSavedVariables() =

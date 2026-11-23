@@ -44,9 +44,16 @@ object FilamentMapping {
         when {
             slot == null -> "Filament ${n.tool + 1} has no slot chosen"
             !slot.loaded -> "Slot ${slot.index + 1} is empty"
-            !sameType(slot.material, n.type) -> "Filament ${n.tool + 1} is ${n.type}, but slot ${slot.index + 1} has ${slot.material ?: "unknown filament"}"
             else -> null
         }
+    }
+
+    /** Friendly notes that don't stop the print, e.g. a different type than the file was sliced for. */
+    fun notes(needs: List<ToolNeed>, slots: List<BoxSlot>, map: Map<Int, Int>): List<String> = needs.mapNotNull { n ->
+        val slot = map[n.tool]?.let { s -> slots.firstOrNull { it.index == s } } ?: return@mapNotNull null
+        if (slot.loaded && !sameType(slot.material, n.type))
+            "Filament ${n.tool + 1} was sliced for ${n.type}; printing with ${slot.material} from slot ${slot.index + 1}. Temperatures come from the file."
+        else null
     }
 
     /** G-code that saves the choice where the Box firmware reads it. */
