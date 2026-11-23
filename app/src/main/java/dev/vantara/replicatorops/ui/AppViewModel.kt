@@ -388,7 +388,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun resume() = action { client.call("printer.print.resume") }
     fun cancel() = action("Print cancelled") { client.call("printer.print.cancel") }
     fun emergencyStop() = action("Emergency stop sent") { client.call("printer.emergency_stop") }
-    fun firmwareRestart() = action { client.call("printer.firmware_restart") }
+    fun firmwareRestart() = action("Firmware restart sent") { client.call("printer.firmware_restart") }
+    /** Klipper (host) restart: reloads printer.cfg without resetting the MCUs. */
+    fun klipperRestart() = action("Klipper restart sent") { client.call("printer.restart") }
 
     fun gcode(script: String, okText: String? = null) = action(okText) { client.gcode(script) }
 

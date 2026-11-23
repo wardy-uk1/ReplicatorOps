@@ -30,6 +30,7 @@ import dev.vantara.replicatorops.ui.lcars.Century24
 import dev.vantara.replicatorops.ui.lcars.Century25
 import dev.vantara.replicatorops.ui.lcars.LcarsButton
 import dev.vantara.replicatorops.ui.lcars.LcarsChip
+import dev.vantara.replicatorops.ui.lcars.LcarsConfirm
 import dev.vantara.replicatorops.ui.lcars.LcarsFont
 import dev.vantara.replicatorops.ui.lcars.LcarsLabel
 import dev.vantara.replicatorops.ui.lcars.LcarsReadout
@@ -43,6 +44,7 @@ fun ConfigScreen(vm: AppViewModel) {
     val chirps by vm.chirps.collectAsState()
     var host by remember { mutableStateOf(vm.prefs.host) }
     var apiKey by remember { mutableStateOf(vm.prefs.apiKey) }
+    var confirmRestart by remember { mutableStateOf<String?>(null) }
     val field = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text)
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -104,7 +106,18 @@ fun ConfigScreen(vm: AppViewModel) {
         LcarsReadout("Klipper", p.klippy)
         p.klippyMessage?.let { LcarsLabel(it, color = s.text, size = 14.sp, maxLines = 6) }
         Spacer(Modifier.height(8.dp))
-        LcarsButton("Firmware restart", color = s.nav[3], enabled = p.online) { vm.firmwareRestart() }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LcarsButton("Klipper restart", color = s.nav[0], enabled = p.online) {
+                if (p.isBusy) confirmRestart = "klipper" else vm.klipperRestart()
+            }
+            LcarsButton("Firmware restart", color = s.nav[3], enabled = p.online) {
+                if (p.isBusy) confirmRestart = "firmware" else vm.firmwareRestart()
+            }
+        }
+        LcarsLabel(
+            "Klipper restart reloads printer.cfg. Firmware restart also resets the printer's boards.",
+            color = s.hint, size = 12.sp, maxLines = 3,
+        )
         if (p.boxRaw.isNotEmpty()) {
             LcarsSectionHeader("QIDI Box raw data", color = s.nav[3])
             LcarsLabel("Send me a screenshot of this if the Box screen looks wrong.", color = s.hint, size = 12.sp, maxLines = 2)
@@ -121,5 +134,18 @@ fun ConfigScreen(vm: AppViewModel) {
             color = s.accent2, size = 13.sp, maxLines = 4,
         )
         Spacer(Modifier.height(24.dp))
+    }
+
+    confirmRestart?.let { kind ->
+        LcarsConfirm(
+            title = "Restart during a print?",
+            text = "A print is running. Restarting ${if (kind == "klipper") "Klipper" else "the firmware"} will stop it and it can't be resumed.",
+            confirmLabel = "Restart",
+            onConfirm = {
+                confirmRestart = null
+                if (kind == "klipper") vm.klipperRestart() else vm.firmwareRestart()
+            },
+            onDismiss = { confirmRestart = null },
+        )
     }
 }
