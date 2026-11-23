@@ -11,7 +11,13 @@ const A = window.Android || {
     onDone(j) { window.__done = JSON.parse(j) }, onError(m) { window.__error = m; console.error(m) },
 };
 const THREE = self.THREE;
-const msg = document.getElementById('msg');
+const msgBox = document.getElementById('msg');
+/** Flashing status in the middle of the viewscreen; busy = faster, blue. */
+function status(text, busy = false) {
+    msgBox.firstElementChild.textContent = text;
+    msgBox.classList.toggle('busy', busy);
+    msgBox.style.display = text ? 'flex' : 'none';
+}
 
 let modelData = null;      // ArrayBuffer (binary STL) of the plate to slice
 let cancelled = false;
@@ -123,7 +129,7 @@ function showModel(vertices, colour) {
     radius = Math.max(10, Math.hypot(size[0], size[1], size[2]) / 2);
     autoFit = true;
     turn = -0.6; tilt = 1.0;
-    msg.style.display = 'none';
+    status('');
     layout();
     return size;
 }
@@ -154,7 +160,7 @@ function thumbnail(px) {
 
 async function loadModel(url, colour) {
     try {
-        msg.textContent = 'LOADING PATTERN…';
+        status('Loading pattern', true);
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Couldn't read the model (${res.status})`);
         modelData = await res.arrayBuffer();
@@ -167,8 +173,18 @@ async function loadModel(url, colour) {
         const size = showModel(verts, colour ? parseInt(colour, 16) : 0xffcc66);
         A.onModel(JSON.stringify({ triangles: count, size }));
     } catch (e) {
+        status('Awaiting pattern');
         A.onError(String(e && e.message || e));
     }
+}
+
+/** Empties the viewscreen. */
+function clearModel() {
+    if (model) { scene.remove(model); model = null; }
+    modelData = null;
+    radius = 135; targetZ = 20; autoFit = true;
+    status('Awaiting pattern');
+    layout();
 }
 
 async function slice(json) {
@@ -218,11 +234,12 @@ async function slice(json) {
 
 window.slicer = {
     loadModel,
+    clearModel,
     slice,
     cancel() { cancelled = true; },
 };
 layout();
-msg.textContent = 'AWAITING PATTERN';
+status('Awaiting pattern');
 A.onReady();
 
 // Self-test (CI): ?selftest=1 slices a 20 mm cube with default Q2C-like settings.

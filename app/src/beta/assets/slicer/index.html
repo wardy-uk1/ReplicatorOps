@@ -9,12 +9,21 @@
     <style>
         html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-action: none; }
         canvas { display: block; width: 100%; height: 100%; }
-        #msg { position: absolute; left: 0; right: 0; top: 45%; text-align: center;
-               color: #FF9900; font: 16px sans-serif; letter-spacing: 0.05em; }
+        /* Antonio (SIL OFL), the app's LCARS font. */
+        @font-face { font-family: 'Antonio'; src: url('/slicer/antonio.ttf') format('truetype'); font-weight: 100 700; }
+        /* Status text in the middle of the viewscreen, flashing like a starship display. */
+        #msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+               pointer-events: none; }
+        #msg span { color: #FF9900; font: 600 22px 'Antonio', sans-serif; letter-spacing: 0.18em;
+                    text-transform: uppercase; padding: 6px 16px;
+                    border-left: 10px solid #FF9900; border-right: 10px solid #FF9900; border-radius: 12px;
+                    animation: lcars-blink 1.4s steps(1, end) infinite; }
+        #msg.busy span { color: #99CCFF; border-color: #99CCFF; animation-duration: 0.7s; }
+        @keyframes lcars-blink { 0% { opacity: 1; } 60% { opacity: 0.15; } }
     </style>
 </head>
 <body>
-    <div id="msg">LOADING SLICER…</div>
+    <div id="msg" class="busy"><span>Initialising</span></div>
     <script type="module" src="/slicer/slicer.js"></script>
 </body>
 </html>

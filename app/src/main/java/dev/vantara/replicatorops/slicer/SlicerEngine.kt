@@ -118,6 +118,7 @@ class SlicerEngine(context: Context) {
     fun clear() {
         pendingLoad = null
         closeOut()
+        js("slicer.clearModel()")
         _state.value = SliceState.Empty
     }
 
