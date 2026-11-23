@@ -4,6 +4,13 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.6.1
+- Sensor sweep now finds printers on your Wi-Fi even while a VPN (Tailscale, Proton) is running on the phone
+- Home screen widget: the 30-minute refresh now asks the printer instead of showing an old status
+- Each menu item has its own colour (Timelapse and Config no longer repeat Status and Control)
+- QIDI Box: the loaded slot is read more strictly, so "no slot loaded" can't show as slot 2
+- Code tidy-up: unused code and old guesses at Box field names removed
+
 ## 0.6.0 · Stardate 202623.11
 - Live camera: the Camera button now plays the printer's live video stream (falls back to snapshots if the stream isn't available). A LIVE marker shows which you're seeing
 - Full screen camera with pinch to zoom

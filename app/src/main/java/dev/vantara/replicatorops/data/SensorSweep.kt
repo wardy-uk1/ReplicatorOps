@@ -2,6 +2,7 @@ package dev.vantara.replicatorops.data
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,6 @@ import java.net.DatagramSocket
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -41,25 +41,28 @@ data class FoundPrinter(val address: String, val name: String, val needsKey: Boo
  */
 class SensorSweep(private val context: Context, http: OkHttpClient) {
 
-    private val probe = http.newBuilder()
+    private val probeBase = http.newBuilder()
         .connectTimeout(1500, TimeUnit.MILLISECONDS)
         .readTimeout(2000, TimeUnit.MILLISECONDS)
         .build()
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun sweep(onFound: (FoundPrinter) -> Unit): List<FoundPrinter> = withContext(Dispatchers.IO) {
+        val net = localNetwork()
+        val factory = net?.socketFactory ?: javax.net.SocketFactory.getDefault()
+        val probe = probeBase.newBuilder().socketFactory(factory).build()
         val found = ConcurrentHashMap<String, FoundPrinter>()
         val tried = ConcurrentHashMap.newKeySet<String>()
         suspend fun check(ip: String) {
             if (!tried.add(ip)) return
-            verify(ip)?.let { p -> if (found.putIfAbsent(ip, p) == null) onFound(p) }
+            verify(probe, ip)?.let { p -> if (found.putIfAbsent(ip, p) == null) onFound(p) }
         }
         coroutineScope {
-            launch { ssdp().forEach { ip -> launch { check(ip) } } }
+            launch { ssdp(net).forEach { ip -> launch { check(ip) } } }
             launch {
                 val gate = Semaphore(48)
-                subnetHosts().map { ip ->
-                    async { gate.withPermit { if (portOpen(ip, 7125)) check(ip) } }
+                subnetHosts(net).map { ip ->
+                    async { gate.withPermit { if (portOpen(factory, ip, 7125)) check(ip) } }
                 }.awaitAll()
             }
         }
@@ -67,13 +70,14 @@ class SensorSweep(private val context: Context, http: OkHttpClient) {
     }
 
     /** M-SEARCH for QIDI printers; returns the addresses that answered. */
-    private fun ssdp(): Set<String> {
+    private fun ssdp(net: Network?): Set<String> {
         val wifi = context.applicationContext.getSystemService(WifiManager::class.java)
         val lock = wifi?.createMulticastLock("replicatorops-ssdp")?.apply { setReferenceCounted(false) }
         val hosts = HashSet<String>()
         runCatching {
             lock?.acquire()
             DatagramSocket().use { socket ->
+                runCatching { net?.bindSocket(socket) }
                 socket.soTimeout = 700
                 val group = InetAddress.getByName("239.255.255.250")
                 val targets = listOf(QIDI_TARGET, "ssdp:all")
@@ -105,15 +109,25 @@ class SensorSweep(private val context: Context, http: OkHttpClient) {
         return hosts
     }
 
-    /** Every other address in the phone's Wi-Fi /24 (bigger networks are trimmed to the /24). */
-    private fun subnetHosts(): List<String> {
-        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return emptyList()
-        val net = cm.allNetworks.firstOrNull { n ->
+    /**
+     * The phone's Wi-Fi (or Ethernet) network. Looked up directly rather than as the
+     * "active" network, because a VPN app (Tailscale, Proton) would be the active one.
+     */
+    @Suppress("DEPRECATION")
+    private fun localNetwork(): Network? {
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return null
+        return cm.allNetworks.firstOrNull { n ->
             cm.getNetworkCapabilities(n)?.let {
-                it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                (it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) &&
+                    !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
             } == true
-        } ?: return emptyList()
-        val own = cm.getLinkProperties(net)?.linkAddresses
+        }
+    }
+
+    /** Every other address in the phone's local /24 (bigger networks are trimmed to the /24). */
+    private fun subnetHosts(net: Network?): List<String> {
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return emptyList()
+        val own = net?.let { cm.getLinkProperties(it) }?.linkAddresses
             ?.firstOrNull { it.address is Inet4Address && !it.address.isLoopbackAddress }
             ?: return emptyList()
         if (own.prefixLength < 16) return emptyList()
@@ -123,12 +137,12 @@ class SensorSweep(private val context: Context, http: OkHttpClient) {
         return (1..254).filter { it != me }.map { prefix + it }
     }
 
-    private fun portOpen(ip: String, port: Int): Boolean = runCatching {
-        Socket().use { it.connect(InetSocketAddress(ip, port), 350); true }
+    private fun portOpen(factory: javax.net.SocketFactory, ip: String, port: Int): Boolean = runCatching {
+        factory.createSocket().use { it.connect(InetSocketAddress(ip, port), 350); true }
     }.getOrDefault(false)
 
     /** Confirms Moonraker answers, and gets the printer's host name. */
-    private fun verify(ip: String): FoundPrinter? {
+    private fun verify(probe: OkHttpClient, ip: String): FoundPrinter? {
         for (port in listOf(7125, 80)) {
             val url = "http://$ip${if (port == 80) "" else ":$port"}/printer/info"
             val result = runCatching {

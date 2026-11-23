@@ -97,7 +97,7 @@ private fun App(vm: AppViewModel) {
     }
 
     val screens = SIDEBAR_SCREENS
-    val nav = screens.mapIndexed { i, sc -> NavItem(sc.label, s.nav[i % s.nav.size]) }
+    val nav = screens.mapIndexed { i, sc -> NavItem(sc.label, s.sidebar[i % s.sidebar.size]) }
 
     BackHandler(enabled = screen != screen.parent) { vm.back() }
 

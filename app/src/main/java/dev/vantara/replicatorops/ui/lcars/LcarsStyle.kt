@@ -21,6 +21,8 @@ data class LcarsStyle(
     val frame: Color,
     val frameAlt: Color,
     val nav: List<Color>,
+    /** Sidebar button colours, one per menu item (nav colours plus two more). */
+    val sidebar: List<Color>,
     val accent: Color,
     val accent2: Color,
     val alert: Color,
@@ -45,6 +47,10 @@ val Century24 = LcarsStyle(
     frame = Color(0xFFFF9900),
     frameAlt = Color(0xFFCC99CC),
     nav = listOf(Color(0xFFFFCC99), Color(0xFF9999FF), Color(0xFFCC6699), Color(0xFFFF9966)),
+    sidebar = listOf(
+        Color(0xFFFFCC99), Color(0xFF9999FF), Color(0xFFCC6699),
+        Color(0xFFFF9966), Color(0xFF9999CC), Color(0xFFCC9966),
+    ),
     accent = Color(0xFFFFCC66),
     accent2 = Color(0xFF99CCFF),
     alert = Color(0xFFDD4444),
@@ -67,6 +73,10 @@ val Century25 = LcarsStyle(
     frame = Color(0xFF3D6DAD),
     frameAlt = Color(0xFF223F69),
     nav = listOf(Color(0xFF5B8FD6), Color(0xFFE8A04A), Color(0xFF8FB4E8), Color(0xFFC5523F)),
+    sidebar = listOf(
+        Color(0xFF5B8FD6), Color(0xFFE8A04A), Color(0xFF8FB4E8),
+        Color(0xFFC5523F), Color(0xFF4F7FC0), Color(0xFFB07A3A),
+    ),
     accent = Color(0xFFE8A04A),
     accent2 = Color(0xFF7FD0E8),
     alert = Color(0xFFD6402F),

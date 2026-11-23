@@ -18,13 +18,13 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 |---|---|---|---|
 | <img src="docs/mockups/png/files.png" width="190" alt="Files screen"> | <img src="docs/mockups/png/file-details.png" width="190" alt="File details"> | <img src="docs/mockups/png/status-25th-century.png" width="190" alt="Status screen in 25th Century style"> | <img src="docs/mockups/png/config-25th-century.png" width="190" alt="Config screen in 25th Century style"> |
 
-## Features (v0.2)
+## Features
 
 - **Status:** LCARS line drawing of the Q2C with nozzle, bed and chamber temperatures beside it, fan speeds, current print (thumbnail, %, layer, time left), a 30-minute temperature graph, and a Camera button
 - **Control:** pause/resume/cancel, heater targets and presets, fan, speed and flow, moving the axes, G-code console, emergency stop
 - **Filament bay (QIDI Box):** four slots with colour, type and grams left, plus the Box temperature and humidity. **Edit slot** sets each slot's type and colour, or links it to a spool. Load, Unload, Eject and Read tag buttons
 - **Replicator stores** (from Control): your spool list with search, add/edit/delete, colour, type, brand, weight, Box slot and "in use". Grams come off automatically when a print ends
-- **Files:** thumbnail grid, details, start print, delete
+- **Files:** thumbnail grid, details, start print, delete. **Load pattern** uploads sliced files (also via Share → Replicator Ops); **Retrieve pattern** saves a printer file to the phone
 - **Mission log** (from Files): print history from Moonraker with Day/Week/Month/Year/All, success rate, print time, filament by type and recent prints
 - **Config:** 24th/25th Century styles, chirps, address/API key, diagnostics, plus raw QIDI Box data
 - **Red Alert:** a background link to the printer (Config > Red Alert). Notifies you when a print finishes, fails, is cancelled or pauses (for example filament runout), and keeps a live "Replicating 42% · 51m left" notification with Pause/Resume buttons. Starts again after a reboot or an update. For the most reliable alerts, set the app's battery use to Unrestricted (there's a button for it)
@@ -77,15 +77,18 @@ From the command line: `JAVA_HOME=<path to JDK 17> ./gradlew assembleDebug` give
 
 ```
 app/src/main/java/dev/vantara/replicatorops/
-  data/          Moonraker WebSocket JSON-RPC client, state, prefs
+  data/          Moonraker client, printer state, prefs, file upload/download,
+                 G-code outlines (Target lock), Sensor sweep, Starbase Uplink
+  alert/         Red Alert background service, notifications, boot receiver
+  widget/        Home screen widget
   ui/lcars/      LCARS styles, frame/elbows, buttons, chirps
-  ui/screens/    Status, Control, Files, Config, camera view
+  ui/screens/    Status, Control, Systems, Files, Timelapse, Config, dialogs
 docs/qidi-maker-inspection.md   Notes from inspecting QIDI Maker 1.1.3
 ```
 
 ## Ideas for later
 
-SSDP printer discovery (QIDI's search target is in the notes), replication queue streaming, multiple printers, an Antonio font in `res/font`.
+Replication queue, bed mesh viewer, multiple printers, an Antonio font in `res/font`.
 
 ## License
 

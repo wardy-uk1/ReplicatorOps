@@ -386,10 +386,10 @@ class MoonrakerClient(
     }
 
     /**
-     * Best-effort QIDI Box parsing. Field names come from QIDI Maker 1.1.3
-     * (box_inserted_N, filament_inserted_N, aht20_temp, aht20_humidity,
-     * box_target_temp, active_slot) plus slot variables in save_variables.
-     * Everything found is also returned raw for the diagnostics screen.
+     * QIDI Box, as the Q2C reports it: box_extras.boxes[0] holds the AHT20 sensor,
+     * box_inserted_N slot flags and filament_info[N]; box_extras.loaded_slot is the
+     * slot feeding the nozzle; save_variables keeps slotN and color_slotN.
+     * Everything Box-related is also returned raw for the diagnostics screen.
      */
     private fun parseBox(o: Map<String, JsonObject>): Pair<BoxState?, Map<String, String>> {
         val boxObjects = o.filterKeys { it.startsWith("box") || it.startsWith("aht20") }
@@ -397,47 +397,37 @@ class MoonrakerClient(
         val slotVars = vars?.filterKeys { k -> SLOT_KEY.containsMatchIn(k) || "box" in k }.orEmpty()
         if (boxObjects.isEmpty() && slotVars.isEmpty()) return null to emptyMap()
 
-        val flat = HashMap<String, JsonPrimitive>()
         val raw = sortedMapOf<String, String>()
         for ((name, obj) in boxObjects) for ((k, v) in obj) {
-            if (v is JsonPrimitive) { flat[k] = v; raw["$name.$k"] = v.content }
+            if (v is JsonPrimitive) raw["$name.$k"] = v.content
         }
-        // Q2C: box_extras.boxes[0] holds the first Box's sensors, slot flags and filament_info.
         val firstBox = ((o["box_extras"]?.get("boxes") as? JsonArray)?.firstOrNull() as? JsonObject)
-        firstBox?.forEach { (k, v) -> if (v is JsonPrimitive) { flat[k] = v; raw["boxes[0].$k"] = v.content } }
+        firstBox?.forEach { (k, v) -> if (v is JsonPrimitive) raw["boxes[0].$k"] = v.content }
         val filamentInfo = (firstBox?.get("filament_info") as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
         filamentInfo.forEachIndexed { i, fi ->
             raw["boxes[0].filament_info[$i]"] = listOfNotNull(fi.s("filament_type"), fi.s("filament_str"), firstColour(fi)).joinToString(" · ")
         }
         for ((k, v) in slotVars) if (v is JsonPrimitive) raw["variables.$k"] = v.content
 
-        fun flag(key: String): Boolean? = flat[key]?.let { p ->
-            p.booleanOrNull ?: p.intOrNull?.let { it != 0 } ?: p.contentOrNull?.equals("true", true)
-        }
-        fun varText(vararg keys: String): String? = keys.firstNotNullOfOrNull { k ->
-            (vars?.get(k) as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() && it != "null" }
+        fun flag(p: JsonPrimitive?): Boolean? = p?.let {
+            it.booleanOrNull ?: it.intOrNull?.let { n -> n != 0 } ?: it.contentOrNull?.equals("true", true)
         }
 
         val slots = (0 until 4).map { i ->
             val info = filamentInfo.firstOrNull { it.i("index") == i } ?: filamentInfo.getOrNull(i)
             val material = filamentName(info)
-                ?: varText("filament_type_slot$i", "slot${i}_filament", "type_slot$i")
-            val colour = info?.let { firstColour(it) } ?: varText("color_slot$i", "colour_slot$i", "slot${i}_color", "color_rgb_slot$i")
-            // Q2C firmware keeps slotN = 1/0 in save_variables; QIDI Maker also reads box_inserted_N.
-            val slotFlag = (vars?.get("slot$i") as? JsonPrimitive)?.intOrNull?.let { it != 0 }
-            val inserted = flag("box_inserted_$i") ?: slotFlag ?: flag("filament_inserted_$i") ?: flag("filament_detected_$i")
+            val colour = info?.let { firstColour(it) } ?: (vars?.get("color_slot$i") as? JsonPrimitive)?.contentOrNull
+            val inserted = flag(firstBox?.get("box_inserted_$i") as? JsonPrimitive) ?: flag(vars?.get("slot$i") as? JsonPrimitive)
             BoxSlot(i, inserted ?: (material != null), material, parseColor(colour))
         }
-        val boxExtras = o["box_extras"]
-        val active = (boxExtras.s("loaded_slot") ?: flat["active_slot"]?.contentOrNull ?: varText("active_slot", "last_load_slot"))
-            ?.filter { it.isDigit() }?.toIntOrNull()
-        // The Box dryer heater is a heater_generic (heater_box1 on the Q2C) with an AHT20 sensor.
+        val active = o["box_extras"].s("loaded_slot")?.let { LOADED_SLOT.find(it)?.groupValues?.get(1)?.toIntOrNull() }
+        // The Box dryer is a heater_generic (heater_box1 on the Q2C) with an AHT20 sensor.
         val boxHeater = o.entries.firstOrNull { it.key.startsWith("heater_generic ") && "box" in it.key }?.value
         val box = BoxState(
             slots = slots,
-            temperature = flat["aht20_temp"]?.doubleOrNull ?: flat["temperature"]?.doubleOrNull ?: boxHeater.d("temperature"),
-            humidity = flat["aht20_humidity"]?.doubleOrNull ?: flat["humidity"]?.doubleOrNull ?: boxHeater.d("humidity"),
-            target = flat["box_target_temp"]?.doubleOrNull ?: boxHeater.d("target"),
+            temperature = firstBox.d("aht20_temp") ?: boxHeater.d("temperature"),
+            humidity = firstBox.d("aht20_humidity") ?: boxHeater.d("humidity"),
+            target = firstBox.d("box_target_temp") ?: boxHeater.d("target"),
             activeSlot = active?.takeIf { it in 0..3 },
         )
         return box to raw
@@ -604,6 +594,7 @@ class MoonrakerClient(
 
     companion object {
         private val SLOT_KEY = Regex("slot_?[0-3]")
+        private val LOADED_SLOT = Regex("""^slot(\d)$""")
         private val VIDEO_EXT = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov")
         private val IMAGE_EXT = listOf(".jpg", ".jpeg", ".png")
         /** QIDI filament codes like QFA00 aren't display names. */

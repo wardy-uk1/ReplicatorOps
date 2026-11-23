@@ -69,7 +69,8 @@ class ReplicatorWidget : AppWidgetProvider() {
         val pending = goAsync()
         scope.launch {
             try {
-                val data = last ?: fetch(context)
+                // Ask the printer; only fall back to the last pushed state if it can't be reached.
+                val data = fetch(context)?.also { last = it } ?: last ?: WidgetData("Offline", null, null, null, true)
                 ids.forEach { render(context, manager, it, data) }
             } finally {
                 pending.finish()
@@ -119,8 +120,8 @@ class ReplicatorWidget : AppWidgetProvider() {
             manager.updateAppWidget(id, v)
         }
 
-        /** One-off query when neither Red Alert nor the app has pushed anything yet. */
-        private fun fetch(context: Context): WidgetData {
+        /** One-off query for the periodic update; null if the printer can't be reached. */
+        private fun fetch(context: Context): WidgetData? {
             val ep = Prefs(context).endpoint() ?: return WidgetData("No printer set", null, null, null, false)
             val http = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(8, TimeUnit.SECONDS).build()
             val req = Request.Builder()
@@ -137,7 +138,7 @@ class ReplicatorWidget : AppWidgetProvider() {
                     fun JsonObject?.num(k: String) = (this?.get(k) as? JsonPrimitive)?.doubleOrNull
                     WidgetData.of(ps.str("state"), r.isSuccessful && ps != null, ds.num("progress") ?: 0.0, ps.num("print_duration") ?: 0.0, ps.str("filename"))
                 }
-            }.getOrElse { WidgetData("Offline", null, null, null, true) }
+            }.getOrNull()
         }
     }
 }

@@ -20,7 +20,6 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
 
 /** What kind of file arrived. */
 enum class PatternKind { SLICED, NEEDS_SLICING, WRONG_PRINTER, UNSUPPORTED }
@@ -223,9 +222,7 @@ class PatternLoader(private val context: Context, http: OkHttpClient) {
         fun origin(file: File): PatternOrigin {
             if (!file.name.lowercase().endsWith(".3mf")) return PatternOrigin.PLAIN_MODEL
             val names = runCatching {
-                ZipInputStream(file.inputStream().buffered()).use { zip ->
-                    generateSequence { zip.nextEntry }.map { it.name.lowercase() }.toList()
-                }
+                ZipFile(file).use { zip -> zip.entries().asSequence().map { it.name.lowercase() }.toList() }
             }.getOrDefault(emptyList())
             return when {
                 names.any { "slic3r_pe" in it || "prusa" in it } -> PatternOrigin.PRUSA
@@ -236,10 +233,5 @@ class PatternLoader(private val context: Context, http: OkHttpClient) {
             }
         }
 
-        fun threeMfHasGcode(file: File): Boolean = runCatching {
-            ZipInputStream(file.inputStream().buffered()).use { zip ->
-                generateSequence { zip.nextEntry }.any { it.name.lowercase().endsWith(".gcode") }
-            }
-        }.getOrDefault(false)
     }
 }
