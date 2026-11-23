@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.8.2
+## 0.8.2 · Stardate 202623.11
 - Checked on nine screen sizes, from a 320 dp phone to a 10" tablet, foldable and Chromebook window
 - Small phones now show two columns of files and timelapses
 - The bed mesh map stays a sensible size on tablets and in landscape
