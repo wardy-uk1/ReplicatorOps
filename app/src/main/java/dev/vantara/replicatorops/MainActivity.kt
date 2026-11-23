@@ -27,6 +27,7 @@ import dev.vantara.replicatorops.ui.screens.ConfigScreen
 import dev.vantara.replicatorops.ui.screens.ControlScreen
 import dev.vantara.replicatorops.ui.screens.FilesScreen
 import dev.vantara.replicatorops.ui.screens.LoadPatternDialog
+import dev.vantara.replicatorops.ui.screens.RetrieveDialog
 import dev.vantara.replicatorops.ui.screens.LogScreen
 import dev.vantara.replicatorops.ui.screens.StoresScreen
 import dev.vantara.replicatorops.ui.screens.UplinkAlert
@@ -99,6 +100,7 @@ private fun App(vm: AppViewModel) {
     CaptainsLogDialog(vm)
     UplinkAlert(vm)
     LoadPatternDialog(vm)
+    RetrieveDialog(vm)
 }
 
 /** Stardate as year + day of month, then month: 22 Nov 2026 -> "202622.11". */

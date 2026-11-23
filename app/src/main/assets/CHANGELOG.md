@@ -4,6 +4,10 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.3.7
+- Retrieve pattern: download any file from the printer to your phone from File details
+- Android's save screen lets you pick the folder (Downloads, Drive…) and the name
+
 ## 0.3.6 · Stardate 202623.11
 - "Pattern requires slicing" now says where a file came from: PrusaSlicer (Printables), Bambu (MakerWorld), Cura or a plain model
 - Long file names in Load pattern wrap onto several lines instead of sliding

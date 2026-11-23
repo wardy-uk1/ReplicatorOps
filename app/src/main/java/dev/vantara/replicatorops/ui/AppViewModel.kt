@@ -89,6 +89,14 @@ sealed interface LoadState {
     data class Failed(val message: String, val pattern: IncomingPattern?) : LoadState
 }
 
+/** Retrieve pattern (download from printer) state. */
+sealed interface RetrieveState {
+    data object Idle : RetrieveState
+    data class Retrieving(val name: String, val progress: Float) : RetrieveState
+    data class Done(val name: String) : RetrieveState
+    data class Failed(val name: String, val message: String) : RetrieveState
+}
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val prefs = Prefs(app)
@@ -183,6 +191,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _openFile = MutableStateFlow<GcodeFile?>(null)
     /** A just-uploaded file whose details (with Replicate) the Files screen should open. */
     val openFile: StateFlow<GcodeFile?> = _openFile.asStateFlow()
+
+    private val _retrieveState = MutableStateFlow<RetrieveState>(RetrieveState.Idle)
+    val retrieveState: StateFlow<RetrieveState> = _retrieveState.asStateFlow()
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
@@ -651,6 +662,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openFileHandled() { _openFile.value = null }
+
+    // ---- Retrieve pattern ------------------------------------------------------------
+
+    /** Download a printer file to the location the user picked in Android's save screen. */
+    fun retrievePattern(file: GcodeFile, dest: Uri) {
+        val ep = client.endpoint
+        if (ep == null || !printer.value.online) {
+            _retrieveState.value = RetrieveState.Failed(file.name, "Printer offline. Connect in Config, then try again.")
+            Chirp.deny()
+            return
+        }
+        viewModelScope.launch {
+            _retrieveState.value = RetrieveState.Retrieving(file.name, 0f)
+            runCatching { loader.download(ep, file.path, dest) { pr -> _retrieveState.value = RetrieveState.Retrieving(file.name, pr) } }
+                .onSuccess {
+                    _retrieveState.value = RetrieveState.Done(file.name)
+                    Chirp.confirm()
+                }
+                .onFailure { e ->
+                    _retrieveState.value = RetrieveState.Failed(file.name, e.message ?: "Download failed")
+                    Chirp.deny()
+                }
+        }
+    }
+
+    fun dismissRetrieve() { _retrieveState.value = RetrieveState.Idle }
 
     companion object {
         const val TEMP_SAMPLES = 900

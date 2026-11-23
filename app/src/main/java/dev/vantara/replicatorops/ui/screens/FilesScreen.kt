@@ -209,6 +209,12 @@ private fun FileDialog(
                 meta?.objectHeight?.let { LcarsReadout("Height", "%.1f mm".format(it)) }
                 meta?.slicer?.let { LcarsReadout("Slicer", it) }
                 LcarsReadout("Size", formatSize(file.size))
+                Spacer(Modifier.height(10.dp))
+                // Retrieve pattern: Android's save screen picks the folder and name.
+                val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { dest ->
+                    dest?.let { vm.retrievePattern(file, it) }
+                }
+                LcarsButton("Retrieve pattern", color = s.nav[1], height = 38.dp) { saver.launch(file.name) }
                 if (!canPrint) {
                     Spacer(Modifier.height(6.dp))
                     LcarsLabel("Replicator busy or not ready", color = s.alert, size = 14.sp)

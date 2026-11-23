@@ -102,6 +102,32 @@ class PatternLoader(private val context: Context, http: OkHttpClient) {
         }
     }
 
+    /** Retrieve pattern: streams a file from the printer's gcodes folder into a file the user chose. */
+    suspend fun download(ep: Endpoint, path: String, dest: Uri, onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
+        val req = Request.Builder().url(ep.gcodeFileUrl(path)).apply {
+            ep.apiKey?.let { header("X-Api-Key", it) }
+        }.build()
+        uploadHttp.newCall(req).execute().use { r ->
+            if (!r.isSuccessful) throw IOException("Printer refused the download (${r.code})")
+            val body = r.body ?: throw IOException("Empty file")
+            val total = body.contentLength()
+            val out = context.contentResolver.openOutputStream(dest, "w") ?: throw IOException("Can't write to that location")
+            body.byteStream().use { input ->
+                out.use { output ->
+                    val buf = ByteArray(64 * 1024)
+                    var done = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        output.write(buf, 0, n)
+                        done += n
+                        if (total > 0) onProgress((done.toFloat() / total).coerceIn(0f, 1f))
+                    }
+                }
+            }
+        }
+    }
+
     private fun displayName(uri: Uri): String? = runCatching {
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
             if (c.moveToFirst()) c.getString(0) else null
