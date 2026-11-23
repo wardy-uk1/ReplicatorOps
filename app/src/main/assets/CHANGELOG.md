@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.8.0
+## 0.8.0 · Stardate 202623.11
 - Fits every screen: the whole interface (LCARS frame, text and buttons) now scales to the screen. Small phones shrink slightly, tablets get a bigger frame and larger text, and turning a phone sideways keeps the same size
 - Foldables, split screen and Chromebook/desktop windows: the app resizes live without restarting, so the camera and connections keep running when you fold, unfold or resize
 - Can be installed on Chromebooks and tablets without a microphone or touchscreen
