@@ -4,6 +4,11 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.3.6
+- "Pattern requires slicing" now says where a file came from: PrusaSlicer (Printables), Bambu (MakerWorld), Cura or a plain model
+- Long file names in Load pattern wrap onto several lines instead of sliding
+- Safety: files sliced in Bambu Studio for Bambu printers (common on MakerWorld) are refused, with an explanation
+
 ## 0.3.5 · Stardate 202622.11
 - Load pattern: send sliced .gcode and .gcode.3mf files to the printer from the Files screen
 - Share → Replicator Ops (or Open with) from Files, Chrome, Drive, email and chat apps

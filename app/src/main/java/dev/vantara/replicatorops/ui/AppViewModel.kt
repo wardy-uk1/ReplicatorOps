@@ -83,6 +83,7 @@ sealed interface LoadState {
     data object Receiving : LoadState
     data class Ready(val pattern: IncomingPattern) : LoadState
     data class NeedsSlicing(val pattern: IncomingPattern) : LoadState
+    data class WrongPrinter(val pattern: IncomingPattern) : LoadState
     data class Unsupported(val name: String) : LoadState
     data class Uploading(val pattern: IncomingPattern, val progress: Float) : LoadState
     data class Failed(val message: String, val pattern: IncomingPattern?) : LoadState
@@ -597,6 +598,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     _loadState.value = when (p.kind) {
                         PatternKind.SLICED -> LoadState.Ready(p)
                         PatternKind.NEEDS_SLICING -> LoadState.NeedsSlicing(p).also { Chirp.deny() }
+                        PatternKind.WRONG_PRINTER -> LoadState.WrongPrinter(p).also { Chirp.alert() }
                         PatternKind.UNSUPPORTED -> LoadState.Unsupported(p.name).also { Chirp.deny() }
                     }
                 }
