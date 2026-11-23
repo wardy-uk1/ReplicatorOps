@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 1.1.0-beta.4
+## 1.1.0-beta.4 · Stardate 202623.11
 - Viewscreen: "Awaiting pattern" now sits in the middle of the 3D preview and flashes like a starship display, in the LCARS font. "Loading pattern" flashes faster in blue
 - Clear empties the viewscreen and shows "Awaiting pattern" again
 
