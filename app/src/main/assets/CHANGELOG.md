@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.4.0
+## 0.4.0 · Stardate 202623.11
 - Red Alert: notifications when a print finishes, fails, is cancelled or pauses (filament runout), even with the app closed. Turn it on or off in Config > Red Alert
 - Live progress notification while printing ("Replicating 42% · 51m left") with Pause and Resume buttons
 - Red Alert restarts by itself after a reboot or a Starbase Uplink update
