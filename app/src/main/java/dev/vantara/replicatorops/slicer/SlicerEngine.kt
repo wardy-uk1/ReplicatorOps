@@ -121,7 +121,7 @@ class SlicerEngine(context: Context) {
         val cfg = buildJsonObject {
             put("device", settings.kiriDevice())
             put("process", settings.kiriProcess())
-            put("pool", pool)
+            put("pool", JsonPrimitive(pool))
         }.toString()
         if (pageUsed || !ready) {
             // Fresh engine: reload the page, reload the model, then slice (see onModel).
