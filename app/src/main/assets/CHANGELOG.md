@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 1.0.3
+## 1.0.3 · Stardate 202623.11
 - Filament check: pick from your spools. Tap Spools next to any filament to choose from Replicator stores, with grams left. Spools linked to a Box slot can be picked
 - Filament check: use any filament you like. A different type or colour from the file is now just a note, not a warning. Only an empty slot stops you
 - Each slot shows how many grams its spool has left, and single-filament prints warn if the spool may run out
