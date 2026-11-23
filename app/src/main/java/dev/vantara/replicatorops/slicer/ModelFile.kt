@@ -54,7 +54,7 @@ class ModelFile(
 
 /**
  * Reads STL and 3MF files (including Bambu Studio / OrcaSlicer / QIDI Studio projects
- * with several plates and objects split into 3D/Objects/*.model).
+ * with several plates and objects split into separate model files under 3D/Objects).
  */
 object ModelReader {
 
