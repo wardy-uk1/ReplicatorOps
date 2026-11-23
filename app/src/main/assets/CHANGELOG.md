@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 1.1.0-beta.3
+## 1.1.0-beta.3 · Stardate 202623.11
 - Slicer layout tidied: the 3D preview stays pinned at the top (on the left in landscape) while the settings scroll underneath
 - Settings are grouped into fold-away sections, each with a one-line summary: Filament, Quality, Strength, Support & adhesion and Speed
 - Smaller round − / + buttons, and the Slice / Send to printer bar stays at the bottom of the screen
