@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.4.4
+## 0.4.4 · Stardate 202623.11
 - Target lock: lock on to several objects and cancel them all with one Fire
 - Target lock: the bed map now draws each object's real shape, read from the first layers of the print file, instead of a dot
 - Cleaner object names (no ".step" or ".stl" in the middle)
