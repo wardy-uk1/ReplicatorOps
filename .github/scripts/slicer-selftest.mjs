@@ -22,7 +22,7 @@ const chrome = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr
 const browser = await puppeteer.launch({ executablePath: chrome, args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 async function run(test) {
     const page = await browser.newPage();
-    page.on('console', m => { const t = m.text(); if (!/^(Slicing|Planning|Writing|Preparing) /.test(t)) console.log(`[page ${test}]`, t); });
+    page.on('console', m => { const t = m.text(); if (t.includes('minion error')) faults[test] = (faults[test] || 0) + 1; if (!/^(Slicing|Planning|Writing|Preparing) /.test(t)) console.log(`[page ${test}]`, t); });
     page.on('pageerror', e => console.log(`[page ${test} error]`, e.message));
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('favicon.ico')) console.log('[missing]', r.status(), r.url()); });
     await page.goto(`http://localhost:8099/slicer/index.html?selftest=${test}`);
@@ -36,12 +36,17 @@ async function run(test) {
 }
 
 let failed = false;
-for (const test of [1, 2]) {
+const faults = {};
+for (const test of [1, 2, 3]) {
     const result = await run(test);
     if (!result) { console.error(`Self-test ${test} timed out`); failed = true; continue; }
     console.log(`Test ${test}:`, JSON.stringify({ done: result.done && { layers: result.done.layers, seconds: result.done.seconds, filamentMm: result.done.filamentMm },
         error: result.error, bytes: result.bytes, ms: result.ms }));
     if (test === 1) console.log(result.head);
+    if (test === 3) {
+        console.log(`Test 3: ${faults[3] || 0} injected pool faults recovered`);
+        if (!faults[3]) { console.error('Test 3: the fault was never triggered'); failed = true; }
+    }
     if (result.error || !result.done || result.bytes < 2000 || !result.head.includes('PRINT_START') || !(result.done.seconds > 0)) failed = true;
 }
 await browser.close();

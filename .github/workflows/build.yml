@@ -58,6 +58,7 @@ jobs:
         if: steps.ver.outputs.channel == 'beta'
         working-directory: grid-apps
         run: |
+          node ../.github/scripts/patch-kiri.mjs .
           npm install --ignore-scripts --no-audit --no-fund
           npm run webpack-ext
           node bin/esbuild.config.mjs prod

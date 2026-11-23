@@ -60,6 +60,9 @@ class SlicerEngine(context: Context) {
     /** Each slice runs on a freshly loaded page: Kiri's workers don't always reset between jobs. */
     private var pageUsed = false
     private var pendingSlice: String? = null
+    /** Settings of the slice in progress, so a stalled slice can be retried with one helper worker. */
+    private var lastSettings: SliceSettings? = null
+    private var retried = false
     private var out: Writer? = null
     private var outFile: File? = null
 
@@ -100,6 +103,15 @@ class SlicerEngine(context: Context) {
     }
 
     fun slice(settings: SliceSettings) {
+        retried = false
+        runSlice(settings, defaultPool())
+    }
+
+    /** Kiri helper workers: each loads its own WebAssembly, so phones get fewer than a desktop. */
+    private fun defaultPool() = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
+
+    private fun runSlice(settings: SliceSettings, pool: Int) {
+        lastSettings = settings
         val (model, plate) = currentModel() ?: return
         outFile?.delete()
         val file = File(work, safeName(model.name, plate) + ".gcode")
@@ -109,6 +121,7 @@ class SlicerEngine(context: Context) {
         val cfg = buildJsonObject {
             put("device", settings.kiriDevice())
             put("process", settings.kiriProcess())
+            put("pool", pool)
         }.toString()
         if (pageUsed || !ready) {
             // Fresh engine: reload the page, reload the model, then slice (see onModel).
@@ -188,7 +201,8 @@ class SlicerEngine(context: Context) {
 
         @JavascriptInterface fun onProgress(stage: String, percent: Int) {
             val (model, plate) = currentModel() ?: return
-            if (_state.value is SliceState.Slicing) _state.value = SliceState.Slicing(model, plate, stage, percent.coerceIn(0, 100))
+            val label = if (retried) "$stage (low-memory mode)" else stage
+            if (_state.value is SliceState.Slicing) _state.value = SliceState.Slicing(model, plate, label, percent.coerceIn(0, 100))
         }
 
         @JavascriptInterface fun onChunk(text: String) {
@@ -239,6 +253,24 @@ class SlicerEngine(context: Context) {
         @JavascriptInterface fun onError(message: String) {
             closeOut()
             val cur = currentModel()
+            if (message.startsWith("STALL:")) {
+                val settings = lastSettings
+                if (!retried && settings != null && cur != null) {
+                    // Try once more on a fresh page with a single helper worker (slower, much lighter).
+                    retried = true
+                    main.post {
+                        pageUsed = true
+                        runSlice(settings, 1)
+                        _state.value = SliceState.Slicing(cur.first, cur.second, "Retrying (low-memory mode)", 0)
+                    }
+                    return
+                }
+                val where = message.removePrefix("STALL:")
+                _state.value = SliceState.Failed(
+                    "The slicer stopped responding at $where. Your phone may be short of memory for this model — " +
+                        "close other apps and try again, or slice it on a computer.", cur?.first, cur?.second)
+                return
+            }
             _state.value = SliceState.Failed(message.ifBlank { "Slicing failed" }, cur?.first, cur?.second)
         }
     }

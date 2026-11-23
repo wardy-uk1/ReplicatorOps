@@ -187,30 +187,53 @@ function clearModel() {
     layout();
 }
 
+// Watchdog: if Kiri stops reporting progress for this long, give up rather than hang.
+const STALL_MS = 60000;
+let watchdog = null;
+function stopWatchdog() { if (watchdog) clearInterval(watchdog); watchdog = null; }
+
 async function slice(json) {
     cancelled = false;
+    let lastStage = 'Preparing', lastPct = 0, lastTick = Date.now();
+    const progress = (stage, pct) => {
+        if (stage !== lastStage || pct !== lastPct) lastTick = Date.now();
+        lastStage = stage; lastPct = pct;
+        A.onProgress(stage, pct);
+    };
+    stopWatchdog();
+    watchdog = setInterval(() => {
+        if (cancelled) return stopWatchdog();
+        if (Date.now() - lastTick > STALL_MS) {
+            stopWatchdog();
+            cancelled = true;
+            A.onError(`STALL:${lastStage} ${lastPct}%`);
+        }
+    }, 2000);
     try {
         if (!modelData) throw new Error('No model loaded');
-        const { device, process } = JSON.parse(json);
-        A.onProgress('Preparing', 0);
-        const engine = newEngine({ workURL: '/kiri/kiri-work.js', poolURL: '/kiri/kiri-pool.js' });
+        const { device, process, pool, fault } = JSON.parse(json);
+        progress('Preparing', 0);
+        // pool = number of Kiri helper workers (each loads its own WebAssembly; phones use fewer).
+        const q = pool ? `?pool=${pool}` : '';
+        const engine = newEngine({ workURL: '/kiri/kiri-work.js' + q, poolURL: '/kiri/kiri-pool.js' + (fault ? `?fault=${fault}` : '') });
         engine.setListener(ev => {
             if (cancelled) return;
-            if (ev.slice && ev.slice.update != null) A.onProgress('Slicing', Math.round(ev.slice.update * 100));
-            if (ev.prepare && ev.prepare.update != null) A.onProgress('Planning paths', Math.round(ev.prepare.update * 100));
+            if (ev.slice && ev.slice.update != null) progress('Slicing', Math.round(ev.slice.update * 100));
+            if (ev.prepare && ev.prepare.update != null) progress('Planning paths', Math.round(ev.prepare.update * 100));
         });
         engine.setMode('FDM').setDevice(device).setProcess(process);
         await engine.parse(modelData.slice(0));
         engine.setTopOffset(0);
-        A.onProgress('Slicing', 0);
+        progress('Slicing', 0);
         await engine.slice();
         if (cancelled) return;
-        A.onProgress('Planning paths', 0);
+        progress('Planning paths', 0);
         await engine.prepare();
         if (cancelled) return;
-        A.onProgress('Writing G-code', 0);
+        progress('Writing G-code', 0);
         const gcode = await engine.export();
         if (cancelled) return;
+        stopWatchdog();
         // Hand the G-code to the app in pieces (it can be tens of MB).
         const step = 512 * 1024;
         for (let i = 0; i < gcode.length; i += step) {
@@ -228,7 +251,8 @@ async function slice(json) {
         info.layers = (gcode.match(/^;LAYER_CHANGE/gm) || []).length;
         A.onDone(JSON.stringify(info));
     } catch (e) {
-        A.onError(String(e && e.message || e));
+        stopWatchdog();
+        if (!cancelled) A.onError(String(e && e.message || e));
     }
 }
 
@@ -236,7 +260,7 @@ window.slicer = {
     loadModel,
     clearModel,
     slice,
-    cancel() { cancelled = true; },
+    cancel() { cancelled = true; stopWatchdog(); },
 };
 layout();
 status('Awaiting pattern');
@@ -247,13 +271,20 @@ A.onReady();
 if (location.search.includes('selftest')) {
     (async () => {
         const second = location.search.includes('selftest=2');
+        const third = location.search.includes('selftest=3');
         const tri = [];
         const box = (x0, y0, z0, x1, y1, z1) => {
             const p = [[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
             const quad = (a, b, c, d) => tri.push(...p[a], ...p[b], ...p[c], ...p[a], ...p[c], ...p[d]);
             quad(0, 3, 2, 1); quad(4, 5, 6, 7); quad(0, 1, 5, 4); quad(1, 2, 6, 5); quad(2, 3, 7, 6); quad(3, 0, 4, 7);
         };
-        if (second) { box(-5, -5, 0, 5, 5, 30); box(-30, -5, 30, 30, 5, 36); } else { box(0, 0, 0, 20, 20, 20); }
+        if (second) { box(-5, -5, 0, 5, 5, 30); box(-30, -5, 30, 30, 5, 36); }
+        else if (third) {
+            // 25 pillars under a plate: many polygons per layer, so the layer-delta subtract goes to the pool.
+            for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) box(i * 12, j * 12, 0, i * 12 + 4, j * 12 + 4, 10);
+            box(0, 0, 10, 52, 52, 13);
+        }
+        else { box(0, 0, 0, 20, 20, 20); }
         const count = tri.length / 9;
         const buf = new ArrayBuffer(84 + count * 50);
         const dv = new DataView(buf);
@@ -262,6 +293,8 @@ if (location.search.includes('selftest')) {
         await loadModel(URL.createObjectURL(new Blob([buf])));
         const cfg = await (await fetch('/slicer/selftest.json')).json();
         if (second) Object.assign(cfg.process, { sliceSupportType: 'automatic', sliceSupportTree: true });
+        // Every pool subtract fails on purpose: slicing must still finish (no hang).
+        if (third) Object.assign(cfg, { pool: 2, fault: 'sub' });
         const started = Date.now();
         await slice(JSON.stringify(cfg));
         window.__selftest = { done: window.__done, error: window.__error, bytes: (window.__gcode || []).join('').length,

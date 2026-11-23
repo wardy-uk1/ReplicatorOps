@@ -4,6 +4,11 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 1.1.0-beta.7
+- Found the real cause of the slicer sticking at about 71%: one of Kiri:Moto's helper workers could hit an error (usually memory, on big models) and never answer, so the slice waited forever. That step now carries on by itself when it happens
+- Phones use fewer helper workers, which uses less memory
+- If the slicer ever stops responding for a minute, it automatically tries again in a low-memory mode. If that still fails you get a clear message instead of an endless progress bar
+
 ## 1.1.0-beta.6 · Stardate 202623.11
 - Slicer no longer stalls at about 71% when you change settings and slice again: every slice now starts on a fresh slicing engine
 - Cancel stops the slicer straight away
