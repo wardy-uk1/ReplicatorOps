@@ -59,8 +59,7 @@ jobs:
         working-directory: grid-apps
         run: |
           npm install --ignore-scripts --no-audit --no-fund
-          npx webpack --config bin/webpack-three-esm.js
-          npx webpack --config bin/webpack-jszip-esm.js
+          npm run webpack-ext
           node bin/esbuild.config.mjs prod
           dest=../app/src/beta/assets
           mkdir -p $dest/kiri $dest/wasm $dest/licenses
