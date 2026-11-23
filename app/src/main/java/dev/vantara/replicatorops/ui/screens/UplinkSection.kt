@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -117,7 +119,7 @@ fun UplinkAlert(vm: AppViewModel) {
         modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
         title = { LcarsLabel("Starbase Uplink", color = s.nav[1], size = 22.sp, bold = true) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 LcarsLabel("Incoming transmission", color = s.accent2, size = 14.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(

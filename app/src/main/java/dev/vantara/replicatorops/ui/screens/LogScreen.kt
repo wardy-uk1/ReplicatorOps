@@ -153,7 +153,7 @@ private fun PriceDialog(current: Double, onSave: (Double) -> Unit, onDismiss: ()
         modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
         title = { LcarsLabel("Filament price", color = s.nav[1], size = 20.sp, bold = true) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 LcarsLabel("Price per kg, used for any type without a priced spool in Replicator stores.", color = s.hint, size = 13.sp, maxLines = 3)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(

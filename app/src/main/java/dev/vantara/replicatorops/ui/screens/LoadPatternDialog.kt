@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,7 +59,7 @@ fun LoadPatternDialog(vm: AppViewModel) {
             )
         },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 when (val state = st) {
                     LoadState.Receiving -> LcarsLabel("Scanning pattern…", color = s.accent2, size = 15.sp)
                     is LoadState.Ready -> {

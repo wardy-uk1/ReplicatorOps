@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import android.net.Uri
 import android.widget.MediaController
 import android.widget.VideoView
@@ -88,7 +90,7 @@ fun TimelapseScreen(vm: AppViewModel) {
         }
         Spacer(Modifier.height(8.dp))
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Adaptive(130.dp),
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -154,7 +156,7 @@ private fun ReelDialog(vm: AppViewModel, f: TimelapseFile, onDismiss: () -> Unit
         modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
         title = { LcarsLabel(reelTitle(f), color = s.nav[1], size = 18.sp, bold = true, maxLines = 2) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (url != null) {
                     var view by remember { mutableStateOf<VideoView?>(null) }
                     AndroidView(

@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -98,7 +100,7 @@ fun FilesScreen(vm: AppViewModel) {
         }
 
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Adaptive(130.dp),
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -193,7 +195,7 @@ private fun FileDialog(
         modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
         title = { LcarsLabel(file.name.removeSuffix(".gcode"), color = s.nav[1], size = 20.sp, bold = true, maxLines = 2) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (meta?.thumbnailUrl != null) {
                     ZoomableBox(Modifier.fillMaxWidth().aspectRatio(1.3f).background(Color(0xFF111111))) {
                         AsyncImage(

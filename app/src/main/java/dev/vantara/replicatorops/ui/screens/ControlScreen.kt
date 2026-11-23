@@ -246,7 +246,7 @@ private fun HeaterDialog(h: Heater, onSet: (Int) -> Unit, onDismiss: () -> Unit)
         modifier = Modifier.border(2.dp, s.nav[2], RoundedCornerShape(24.dp)),
         title = { LcarsLabel("${h.label} target", color = s.nav[2], size = 22.sp, bold = true) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { v -> text = v.filter { it.isDigit() }.take(3) },

@@ -1,5 +1,11 @@
 package dev.vantara.replicatorops.ui.lcars
 
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
@@ -72,6 +78,11 @@ fun LcarsLabel(
         maxLines = maxLines,
         softWrap = !slide,
         overflow = if (slide) TextOverflow.Clip else TextOverflow.Ellipsis,
+        // Antonio is tall; drop the extra font padding so labels don't get clipped in bars.
+        style = TextStyle(
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+        ),
     )
 }
 
@@ -151,7 +162,7 @@ fun LcarsFrame(
             LcarsElbow(Modifier.weight(1f).fillMaxHeight(), s.frame, s.barHeight, flip = false)
             Spacer(Modifier.width(8.dp))
             Box(
-                Modifier.widthIn(max = 250.dp).height(maxOf(s.barHeight, 30.dp))
+                Modifier.widthIn(max = 320.dp).height(maxOf(s.barHeight, 40.dp))
                     .then(if (onTitleClick != null) Modifier.clickable { Chirp.tap(); onTitleClick() } else Modifier),
                 contentAlignment = Alignment.CenterStart,
             ) {
@@ -166,14 +177,29 @@ fun LcarsFrame(
         }
 
         Row(Modifier.fillMaxWidth().weight(1f)) {
-            Column(Modifier.width(s.sidebarWidth).fillMaxHeight()) {
-                nav.forEachIndexed { i, item ->
+            BoxWithConstraints(Modifier.width(s.sidebarWidth).fillMaxHeight()) {
+                // In landscape (or with many items) the buttons don't fit: shrink them a
+                // little and let the sidebar scroll; otherwise keep the filler block below.
+                val tall = 58.dp
+                val needed = (tall + s.gap) * nav.size + 40.dp
+                val fits = maxHeight >= needed
+                val buttonHeight = if (fits) tall else 48.dp
+                Column(
+                    Modifier.fillMaxSize()
+                        .then(if (fits) Modifier else Modifier.verticalScroll(rememberScrollState()))
+                ) {
+                    nav.forEachIndexed { i, item ->
+                        Spacer(Modifier.height(s.gap))
+                        LcarsNavButton(item.label, item.color, i == selected, buttonHeight) { onSelect(i) }
+                    }
                     Spacer(Modifier.height(s.gap))
-                    LcarsNavButton(item.label, item.color, i == selected) { onSelect(i) }
+                    if (fits) {
+                        Box(Modifier.fillMaxWidth().weight(1f).background(s.frameAlt))
+                    } else {
+                        Box(Modifier.fillMaxWidth().height(24.dp).background(s.frameAlt))
+                    }
+                    Spacer(Modifier.height(s.gap))
                 }
-                Spacer(Modifier.height(s.gap))
-                Box(Modifier.fillMaxWidth().weight(1f).background(s.frameAlt))
-                Spacer(Modifier.height(s.gap))
             }
             Spacer(Modifier.width(10.dp))
             Box(Modifier.weight(1f).fillMaxHeight().padding(top = 4.dp)) { content() }
@@ -192,12 +218,12 @@ fun LcarsFrame(
 }
 
 @Composable
-private fun LcarsNavButton(label: String, color: Color, selected: Boolean, onClick: () -> Unit) {
+private fun LcarsNavButton(label: String, color: Color, selected: Boolean, height: Dp, onClick: () -> Unit) {
     val s = LocalLcars.current
     Box(
         Modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(height)
             .background(if (selected) s.accent else color)
             .clickable { Chirp.nav(); onClick() }
             .padding(end = 6.dp, bottom = 4.dp),

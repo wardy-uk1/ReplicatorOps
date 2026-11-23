@@ -247,7 +247,7 @@ private fun PrinterDialog(existing: PrinterProfile?, onSave: (String, String, St
         modifier = Modifier.border(2.dp, s.nav[2], RoundedCornerShape(24.dp)),
         title = { LcarsLabel(if (existing == null) "Register printer" else "Rename printer", color = s.nav[2], size = 20.sp, bold = true) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it }, singleLine = true, textStyle = field,
                     label = { LcarsLabel("Name (e.g. Q2C workshop)", color = s.accent2, size = 12.sp) },

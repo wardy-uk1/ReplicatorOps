@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.7.1
+- Landscape: the menu now scrolls (and its buttons shrink a little) when it doesn't fit, so every item can be reached
+- The title is no longer cut off at the top with the new font
+- Files and Timelapse show more columns when there's room (landscape and tablets)
+- Long pop-ups (file details, timelapse player, Captain's Log and others) now scroll instead of running off the screen
+
 ## 0.7.0 · Stardate 202623.11
 - Replication queue: Add to queue from any pattern's details, then reorder or remove in Files > Queue. When a print finishes, Red Alert says "clear the build plate" with a Next button, or tap Engage next on the Status screen
 - Bed mesh: a 3D map of your bed's levelling on Ship systems (drag to turn and tilt), with variance and a Calibrate button

@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -43,7 +45,7 @@ fun RetrieveDialog(vm: AppViewModel) {
             )
         },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 when (val state = st) {
                     is RetrieveState.Retrieving -> {
                         LcarsLabel(state.name, color = s.text, size = 17.sp, maxLines = 3)
