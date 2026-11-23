@@ -45,6 +45,7 @@ import dev.vantara.replicatorops.ui.SIDEBAR_SCREENS
 import dev.vantara.replicatorops.ui.Screen
 import dev.vantara.replicatorops.ui.lcars.LcarsFrame
 import dev.vantara.replicatorops.ui.lcars.LcarsTheme
+import dev.vantara.replicatorops.ui.lcars.ScaledToScreen
 import dev.vantara.replicatorops.ui.lcars.LocalLcars
 import dev.vantara.replicatorops.ui.lcars.NavItem
 import dev.vantara.replicatorops.ui.screens.CaptainsLogDialog
@@ -90,7 +91,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleIncoming(intent)
         setContent {
             val style by vm.style.collectAsState()
-            LcarsTheme(style) { App(vm) }
+            LcarsTheme(style) { ScaledToScreen { App(vm) } }
         }
     }
 
