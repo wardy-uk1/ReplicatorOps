@@ -170,8 +170,12 @@ class SlicerEngine(context: Context) {
             closeOut()
             val raw = outFile ?: return
             val info = runCatching { json.parseToJsonElement(infoJson).jsonObject }.getOrNull()
-            val thumb = (info?.get("thumbnail") as? JsonPrimitive)?.contentOrNull
-            val small = (info?.get("thumbSmall") as? JsonPrimitive)?.contentOrNull
+            // Thumbnails drawn here (the page's WebGL view isn't available on every phone).
+            val mesh = runCatching { MeshRenderer(plate.triangles) }.getOrNull()
+            val thumb = runCatching { mesh?.thumbnailBase64(300) }.getOrNull()
+                ?: (info?.get("thumbnail") as? JsonPrimitive)?.contentOrNull
+            val small = runCatching { mesh?.thumbnailBase64(96) }.getOrNull()
+                ?: (info?.get("thumbSmall") as? JsonPrimitive)?.contentOrNull
             // Final file: thumbnails (for the printer's screen and Moonraker) + G-code.
             val final = File(work, raw.nameWithoutExtension + "_rops.gcode")
             final.bufferedWriter().use { w ->

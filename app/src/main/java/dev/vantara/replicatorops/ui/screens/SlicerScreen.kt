@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
@@ -88,10 +89,18 @@ fun SlicerScreen(vm: AppViewModel) {
         val wide = maxWidth > maxHeight && maxWidth > 560.dp
         val previewHeight = (maxHeight * 0.34f).coerceIn(180.dp, 360.dp)
 
+        val (status, busyStatus) = when (state) {
+            SliceState.Starting -> "Initialising" to true
+            is SliceState.Loading -> "Loading pattern" to true
+            else -> (if (model == null) "Awaiting pattern" else null) to false
+        }
+
         @Composable
         fun Preview(mod: Modifier) {
             Box(mod.clip(RoundedCornerShape(14.dp)).border(2.dp, s.frameAlt, RoundedCornerShape(14.dp))) {
-                AndroidView(factory = { engine.detach(); engine.webView }, modifier = Modifier.fillMaxSize())
+                // The slicing engine's page runs in a tiny hidden WebView; the preview is drawn natively.
+                AndroidView(factory = { engine.detach(); engine.webView }, modifier = Modifier.size(1.dp).alpha(0f))
+                MeshPreview(model?.second, status, busyStatus, Modifier.fillMaxSize())
             }
         }
 
@@ -100,7 +109,7 @@ fun SlicerScreen(vm: AppViewModel) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     TopBar(vm, model, busy) { picker.launch(arrayOf("*/*")) }
                     Preview(Modifier.fillMaxWidth().weight(1f))
-                    LcarsLabel("Drag to turn · pinch to zoom", color = s.hint, size = 11.sp)
+                    LcarsLabel("Drag to turn · pinch to zoom · double-tap to centre", color = s.hint, size = 11.sp)
                 }
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { Body(vm, state, model, busy) }
@@ -112,7 +121,7 @@ fun SlicerScreen(vm: AppViewModel) {
                 TopBar(vm, model, busy) { picker.launch(arrayOf("*/*")) }
                 // Pinned preview: about a third of the screen.
                 Preview(Modifier.fillMaxWidth().height(previewHeight))
-                LcarsLabel("Drag to turn · pinch to zoom", color = s.hint, size = 11.sp)
+                LcarsLabel("Drag to turn · pinch to zoom · double-tap to centre", color = s.hint, size = 11.sp)
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { Body(vm, state, model, busy) }
                 ActionBar(vm, state, model)
             }

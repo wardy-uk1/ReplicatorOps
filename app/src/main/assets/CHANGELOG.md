@@ -4,6 +4,11 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 1.1.0-beta.5
+- Viewscreen fixed: the 3D preview is now drawn by the app itself, so the model and the Q2C bed show on every phone (it was blank on some). Drag to turn and tilt, pinch to zoom, double-tap to centre
+- The flashing "Awaiting pattern" / "Loading pattern" status is now part of the app, in the LCARS font
+- Thumbnails for the printer's screen are drawn the same way, so they always show the model
+
 ## 1.1.0-beta.4 · Stardate 202623.11
 - Viewscreen: "Awaiting pattern" now sits in the middle of the 3D preview and flashes like a starship display, in the LCARS font. "Loading pattern" flashes faster in blue
 - Clear empties the viewscreen and shows "Awaiting pattern" again
