@@ -58,8 +58,8 @@ fun CommandsScreen(vm: AppViewModel) {
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LcarsButton("Speak a command", color = s.accent, height = 38.dp) { vm.requestVoice() }
-            LcarsButton("Type a command", color = s.nav[1], height = 38.dp) { vm.requestTyping() }
+            LcarsButton("Speak", color = s.accent, height = 38.dp) { vm.requestVoice() }
+            LcarsButton("Type", color = s.nav[1], height = 38.dp) { vm.requestTyping() }
         }
         if (!p.ready) {
             Spacer(Modifier.height(6.dp))
