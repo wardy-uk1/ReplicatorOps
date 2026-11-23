@@ -25,8 +25,23 @@ android {
         applicationId = "dev.vantara.replicatorops"
         minSdk = 26
         targetSdk = 35
-        versionCode = 103
-        versionName = "1.0.3"
+        versionCode = 1101
+        versionName = "1.1.0-beta.1"
+    }
+
+    // Two editions: the normal app, and a Beta that installs alongside it with the
+    // on-phone slicer. Beta builds come from the "beta" branch as GitHub pre-releases.
+    flavorDimensions += "channel"
+    productFlavors {
+        create("stable") {
+            dimension = "channel"
+            buildConfigField("boolean", "BETA", "false")
+        }
+        create("beta") {
+            dimension = "channel"
+            applicationIdSuffix = ".beta"
+            buildConfigField("boolean", "BETA", "true")
+        }
     }
 
     signingConfigs {
@@ -89,6 +104,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Beta slicer: Kiri:Moto runs in a WebView served from the app's assets.
+    implementation("androidx.webkit:webkit:1.12.1")
 
     testImplementation("junit:junit:4.13.2")
 

@@ -29,8 +29,8 @@ jobs:
       - name: Render screens
         # The Android runtime download sometimes fails on GitHub; one retry with it cached usually fixes it.
         run: |
-          ./gradlew recordRoborazziDebug -Pscreenshots --tests '*ScreenSizesTest*' || \
-          ./gradlew recordRoborazziDebug -Pscreenshots --tests '*ScreenSizesTest*'
+          ./gradlew recordRoborazziStableDebug -Pscreenshots --tests '*ScreenSizesTest*' || \
+          ./gradlew recordRoborazziStableDebug -Pscreenshots --tests '*ScreenSizesTest*'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

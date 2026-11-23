@@ -25,6 +25,12 @@ import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.data.PrinterAlert
+import dev.vantara.replicatorops.slicer.ModelReader
+import dev.vantara.replicatorops.slicer.SliceSettings
+import dev.vantara.replicatorops.slicer.SliceState
+import dev.vantara.replicatorops.slicer.SlicerEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import dev.vantara.replicatorops.data.FilamentMapping
 import dev.vantara.replicatorops.data.PrinterProfile
 import dev.vantara.replicatorops.data.ReplicationQueue
@@ -71,6 +77,7 @@ enum class Screen(val label: String) {
     SYSTEMS("Systems"),
     FILES("Files"),
     TIMELAPSE("Timelapse"),
+    SLICER("Slicer"),
     COMMANDS("Commands"),
     CONFIG("Config"),
     STORES("Stores"),
@@ -84,7 +91,11 @@ enum class Screen(val label: String) {
         }
 }
 
-val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.TIMELAPSE, Screen.COMMANDS, Screen.CONFIG)
+val SIDEBAR_SCREENS: List<Screen> = buildList {
+    addAll(listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES))
+    if (BuildConfig.BETA) add(Screen.SLICER) // on-phone slicer: Beta only
+    addAll(listOf(Screen.TIMELAPSE, Screen.COMMANDS, Screen.CONFIG))
+}
 
 enum class LogPeriod(val label: String, val days: Int?) { DAY("Day", 1), WEEK("Week", 7), MONTH("Month", 30), YEAR("Year", 365), ALL("All", null); }
 
@@ -1079,6 +1090,87 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     Chirp.deny()
                 }
         }
+    }
+
+    // ---- On-phone slicer (Beta) ---------------------------------------------------------
+
+    /** Kiri:Moto in a WebView; created the first time the Slicer is used (Beta only). */
+    val slicer: SlicerEngine? by lazy { if (BuildConfig.BETA) SlicerEngine(getApplication()) else null }
+    private val _sliceSettings = MutableStateFlow(SliceSettings())
+    val sliceSettings: StateFlow<SliceSettings> = _sliceSettings.asStateFlow()
+    fun setSliceSettings(s: SliceSettings) { _sliceSettings.value = s }
+
+    /** "Slice it here" from the Load pattern pop-up. */
+    fun sliceIncoming() {
+        val p = when (val st = _loadState.value) {
+            is LoadState.NeedsSlicing -> st.pattern
+            is LoadState.WrongPrinter -> st.pattern
+            else -> null
+        } ?: return
+        _loadState.value = LoadState.Idle
+        openForSlicing(p.file, p.name)
+    }
+
+    /** Opens an STL/3MF in the Slicer tab. */
+    fun openForSlicing(file: File, name: String) {
+        val engine = slicer ?: return
+        select(Screen.SLICER)
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { ModelReader.read(file, name) } }
+                .onSuccess { model ->
+                    _sliceSettings.value = SliceSettings.fromProject(model.projectSettings)
+                    engine.open(model, 0)
+                }
+                .onFailure { e -> Chirp.deny(); say(e.message ?: "Couldn't read that model") }
+        }
+    }
+
+    fun choosePlate(index: Int) {
+        val engine = slicer ?: return
+        val model = when (val st = engine.state.value) {
+            is SliceState.Ready -> st.model
+            is SliceState.Done -> st.model
+            is SliceState.Failed -> st.model
+            else -> null
+        } ?: return
+        engine.open(model, index)
+    }
+
+    /** Back to the 3MF's own settings (or the Q2C defaults for an STL). */
+    fun resetSliceSettings() {
+        val model = when (val st = slicer?.state?.value) {
+            is SliceState.Ready -> st.model
+            is SliceState.Done -> st.model
+            is SliceState.Failed -> st.model
+            else -> null
+        }
+        _sliceSettings.value = SliceSettings.fromProject(model?.projectSettings)
+    }
+
+    /** "Load model" on the Slicer tab. */
+    fun receiveForSlicing(uri: Uri) {
+        viewModelScope.launch {
+            runCatching { loader.receive(uri) }
+                .onSuccess { p ->
+                    when (p.kind) {
+                        PatternKind.SLICED -> _loadState.value = LoadState.Ready(p)
+                        PatternKind.UNSUPPORTED -> { Chirp.deny(); say("The slicer takes STL and 3MF files") }
+                        else -> openForSlicing(p.file, p.name)
+                    }
+                }
+                .onFailure { e -> Chirp.deny(); say(e.message ?: "Couldn't read that file") }
+        }
+    }
+
+    fun startSlice() = slicer?.slice(_sliceSettings.value)
+    fun cancelSlice() = slicer?.cancel()
+
+    /** Sends the sliced G-code to the printer (the usual Load pattern upload). */
+    fun sendSliced() {
+        val done = slicer?.state?.value as? SliceState.Done ?: return
+        val copy = File(getApplication<Application>().cacheDir, done.gcode.name).also { done.gcode.copyTo(it, overwrite = true) }
+        _loadState.value = LoadState.Ready(IncomingPattern(copy.name, copy, PatternKind.SLICED))
+        beamPattern()
     }
 
     fun dismissLoad() {

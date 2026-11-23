@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.vantara.replicatorops.data.PatternOrigin
+import dev.vantara.replicatorops.BuildConfig
 import dev.vantara.replicatorops.ui.AppViewModel
 import dev.vantara.replicatorops.ui.LoadState
 import dev.vantara.replicatorops.ui.lcars.Chirp
@@ -119,12 +120,22 @@ fun LoadPatternDialog(vm: AppViewModel) {
                 } else {
                     LcarsButton("Acknowledged", color = s.frameAlt) { vm.dismissLoad() }
                 }
-                is LoadState.NeedsSlicing, is LoadState.WrongPrinter, is LoadState.Unsupported ->
+                is LoadState.NeedsSlicing, is LoadState.WrongPrinter ->
+                    // Beta: slice it right here on the phone.
+                    if (BuildConfig.BETA) {
+                        LcarsButton("Slice it here", color = s.accent, sound = Chirp::confirm) { vm.sliceIncoming() }
+                    } else {
+                        LcarsButton("Acknowledged", color = s.frameAlt) { vm.dismissLoad() }
+                    }
+                is LoadState.Unsupported ->
                     LcarsButton("Acknowledged", color = s.frameAlt) { vm.dismissLoad() }
                 else -> Unit
             }
         },
         dismissButton = {
+            if (BuildConfig.BETA && (st is LoadState.NeedsSlicing || st is LoadState.WrongPrinter)) {
+                LcarsButton("Cancel", color = s.frameAlt) { vm.dismissLoad() }
+            }
             if (st is LoadState.Ready || (st is LoadState.Failed && (st as LoadState.Failed).pattern != null)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LcarsButton("Cancel", color = s.frameAlt) { vm.dismissLoad() }

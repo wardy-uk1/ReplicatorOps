@@ -9,3 +9,9 @@ captures/
 keystore.properties
 *.jks
 *.keystore
+
+# Built in CI from GridSpace/grid-apps (Kiri:Moto) for the Beta
+app/src/beta/assets/kiri/
+app/src/beta/assets/wasm/
+app/src/beta/assets/licenses/Kiri-Moto-LICENSE.md
+app/src/beta/assets/slicer/selftest.json

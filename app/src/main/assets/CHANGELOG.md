@@ -4,6 +4,15 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 1.1.0-beta.1
+- Replicator Ops Beta: a separate app that installs next to the normal one
+- New Slicer tab: slice STL and 3MF files (MakerWorld, Printables…) right on the phone, offline, with the Kiri:Moto engine
+- 3MF projects keep their plates, objects and settings (layer height, walls, infill, supports, temperatures, speeds) from OrcaSlicer, QIDI Studio or Bambu Studio
+- Tweak filament, temperatures, layer height, walls, infill, supports and brim before slicing; 3D preview you can turn and zoom
+- Sliced files use QIDI's own Q2C start and end routine, include a thumbnail for the printer screen, and go straight to the printer with Send to printer
+- "Pattern requires slicing" now offers Slice it here
+- Starbase Uplink in the Beta follows beta releases
+
 ## 1.0.3 · Stardate 202623.11
 - Filament check: pick from your spools. Tap Spools next to any filament to choose from Replicator stores, with grams left. Spools linked to a Box slot can be picked
 - Filament check: use any filament you like. A different type or colour from the file is now just a note, not a warning. Only an empty slot stops you

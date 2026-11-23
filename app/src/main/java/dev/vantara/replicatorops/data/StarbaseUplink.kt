@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import dev.vantara.replicatorops.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -38,8 +39,11 @@ class StarbaseUplink(private val context: Context, private val http: OkHttpClien
 
     /** Returns the newer release, or null if this build is current. */
     suspend fun check(currentVersion: String): Upgrade? = withContext(Dispatchers.IO) {
+        // The main app follows full releases (/releases/latest never returns a pre-release);
+        // the Beta app follows the newest "-beta" pre-release instead.
+        val beta = BuildConfig.BETA
         val req = Request.Builder()
-            .url(LATEST_URL)
+            .url(if (beta) "$RELEASES_URL?per_page=20" else LATEST_URL)
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", "ReplicatorOps/$currentVersion")
             .build()
@@ -47,7 +51,15 @@ class StarbaseUplink(private val context: Context, private val http: OkHttpClien
             if (!r.isSuccessful) throw IOException("Starbase returned ${r.code}")
             r.body?.string() ?: throw IOException("Empty reply from Starbase")
         }
-        val rel = json.parseToJsonElement(body).jsonObject
+        val rel = if (beta) {
+            (json.parseToJsonElement(body) as? JsonArray).orEmpty()
+                .mapNotNull { it as? JsonObject }
+                .filter { it.str("tag_name")?.contains("-beta") == true }
+                .maxWithOrNull { a, b -> compareVersions(a.str("tag_name")!!.removePrefix("v"), b.str("tag_name")!!.removePrefix("v")) }
+                ?: return@withContext null
+        } else {
+            json.parseToJsonElement(body).jsonObject
+        }
         val tag = rel.str("tag_name") ?: return@withContext null
         val version = tag.removePrefix("v")
         if (compareVersions(version, currentVersion) <= 0) return@withContext null
@@ -119,9 +131,11 @@ class StarbaseUplink(private val context: Context, private val http: OkHttpClien
 
     companion object {
         const val LATEST_URL = "https://api.github.com/repos/wardy-uk1/replicatorops/releases/latest"
+        const val RELEASES_URL = "https://api.github.com/repos/wardy-uk1/replicatorops/releases"
         const val RELEASES_PAGE = "https://github.com/wardy-uk1/replicatorops/releases"
 
         /** Compares dotted versions like 0.10.2 vs 0.9.0; anything after '-' is ignored. */
+        /** "1.1.0" > "1.1.0-beta.2" > "1.1.0-beta.1" > "1.0.3". */
         fun compareVersions(a: String, b: String): Int {
             fun parts(v: String) = v.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
             val x = parts(a)
@@ -130,7 +144,15 @@ class StarbaseUplink(private val context: Context, private val http: OkHttpClien
                 val c = x.getOrElse(i) { 0 }.compareTo(y.getOrElse(i) { 0 })
                 if (c != 0) return c
             }
-            return 0
+            // Same base version: a full release beats any pre-release; betas compare by number.
+            fun pre(v: String): Int? = if ('-' !in v) null else v.substringAfter('-').filter { it.isDigit() }.toIntOrNull() ?: 0
+            val pa = pre(a); val pb = pre(b)
+            return when {
+                pa == null && pb == null -> 0
+                pa == null -> 1
+                pb == null -> -1
+                else -> pa.compareTo(pb)
+            }
         }
     }
 }
