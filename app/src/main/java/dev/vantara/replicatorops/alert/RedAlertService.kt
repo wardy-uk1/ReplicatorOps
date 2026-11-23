@@ -21,6 +21,8 @@ import dev.vantara.replicatorops.R
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.PrinterState
 import dev.vantara.replicatorops.data.Prefs
+import dev.vantara.replicatorops.widget.ReplicatorWidget
+import dev.vantara.replicatorops.widget.WidgetData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -100,6 +102,7 @@ class RedAlertService : Service() {
     }
 
     private fun updateWatch(p: PrinterState) {
+        ReplicatorWidget.push(this, WidgetData.of(p))
         val w = RedAlerts.watch(p, host)
         if (w == lastWatch) return
         lastWatch = w

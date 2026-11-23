@@ -129,3 +129,13 @@ data class HistoryJob(
 
 /** One temperature sample for the thermal log graph. */
 data class TempSample(val nozzle: Float, val bed: Float)
+
+/** A timelapse video in Moonraker's "timelapse" root, with its preview image if there is one. */
+data class TimelapseFile(
+    val path: String,
+    val modified: Double,
+    val size: Long,
+    val thumbnailPath: String?,
+) {
+    val name: String get() = path.substringAfterLast('/')
+}

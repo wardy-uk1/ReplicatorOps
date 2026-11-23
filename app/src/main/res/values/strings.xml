@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Replicator Ops</string>
+    <string name="widget_description">Print status, progress and time left</string>
 </resources>

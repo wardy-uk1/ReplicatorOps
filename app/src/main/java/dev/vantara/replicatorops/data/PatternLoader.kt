@@ -104,8 +104,12 @@ class PatternLoader(private val context: Context, http: OkHttpClient) {
     }
 
     /** Retrieve pattern: streams a file from the printer's gcodes folder into a file the user chose. */
-    suspend fun download(ep: Endpoint, path: String, dest: Uri, onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
-        val req = Request.Builder().url(ep.gcodeFileUrl(path)).apply {
+    suspend fun download(ep: Endpoint, path: String, dest: Uri, onProgress: (Float) -> Unit) =
+        downloadUrl(ep, ep.gcodeFileUrl(path), dest, onProgress)
+
+    /** Streams any printer file URL into a content Uri (save screen) or a file Uri. */
+    suspend fun downloadUrl(ep: Endpoint, url: String, dest: Uri, onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
+        val req = Request.Builder().url(url).apply {
             ep.apiKey?.let { header("X-Api-Key", it) }
         }.build()
         uploadHttp.newCall(req).execute().use { r ->

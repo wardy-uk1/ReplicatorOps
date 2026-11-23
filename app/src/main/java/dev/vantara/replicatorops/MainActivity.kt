@@ -31,6 +31,7 @@ import dev.vantara.replicatorops.ui.screens.RetrieveDialog
 import dev.vantara.replicatorops.ui.screens.LogScreen
 import dev.vantara.replicatorops.ui.screens.StoresScreen
 import dev.vantara.replicatorops.ui.screens.SystemsScreen
+import dev.vantara.replicatorops.ui.screens.TimelapseScreen
 import dev.vantara.replicatorops.ui.screens.AskForNotificationsOnce
 import dev.vantara.replicatorops.ui.screens.UplinkAlert
 import dev.vantara.replicatorops.ui.screens.StatusScreen
@@ -120,6 +121,7 @@ private fun App(vm: AppViewModel) {
             Screen.CONTROL -> ControlScreen(vm)
             Screen.SYSTEMS -> SystemsScreen(vm)
             Screen.FILES -> FilesScreen(vm)
+            Screen.TIMELAPSE -> TimelapseScreen(vm)
             Screen.CONFIG -> ConfigScreen(vm)
             Screen.STORES -> StoresScreen(vm)
             Screen.LOG -> LogScreen(vm)

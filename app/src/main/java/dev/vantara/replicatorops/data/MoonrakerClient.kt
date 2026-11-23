@@ -509,6 +509,28 @@ class MoonrakerClient(
         )
     }
 
+    /** Timelapse videos (moonraker-timelapse saves them in the "timelapse" root), newest first. */
+    suspend fun listTimelapses(): List<TimelapseFile> {
+        val result = call("server.files.list", buildJsonObject { put("root", "timelapse") })
+        val all = (result as? JsonArray ?: JsonArray(emptyList())).mapNotNull { el ->
+            val f = el as? JsonObject ?: return@mapNotNull null
+            val path = f.s("path") ?: f.s("filename") ?: return@mapNotNull null
+            Triple(path, f.d("modified") ?: 0.0, f["size"]?.jsonPrimitive?.longOrNull ?: 0L)
+        }
+        val images = all.map { it.first }.filter { p -> IMAGE_EXT.any { p.lowercase().endsWith(it) } }.toSet()
+        return all.filter { (p, _, _) -> VIDEO_EXT.any { p.lowercase().endsWith(it) } }
+            .map { (p, mod, size) ->
+                val base = p.substringBeforeLast('.')
+                val thumb = IMAGE_EXT.map { base + it }.firstOrNull { it in images }
+                TimelapseFile(p, mod, size, thumb)
+            }
+            .sortedByDescending { it.modified }
+    }
+
+    suspend fun deleteTimelapse(path: String) {
+        call("server.files.delete_file", buildJsonObject { put("path", "timelapse/$path") })
+    }
+
     /** Print history, newest first. [since] is a Unix time in seconds, or null for all. */
     suspend fun history(since: Double?, pageSize: Int = 500, maxJobs: Int = 20_000): List<HistoryJob> {
         // Moonraker returns at most `limit` jobs per call, so page through with `start`.
@@ -564,6 +586,8 @@ class MoonrakerClient(
 
     companion object {
         private val SLOT_KEY = Regex("slot_?[0-3]")
+        private val VIDEO_EXT = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov")
+        private val IMAGE_EXT = listOf(".jpg", ".jpeg", ".png")
         /** QIDI filament codes like QFA00 aren't display names. */
         private val FILAMENT_CODE = Regex("^Q?[A-Z]{1,3}\\d{2,}$")
         val BASE_OBJECTS = setOf(

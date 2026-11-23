@@ -24,8 +24,8 @@ android {
         applicationId = "dev.vantara.replicatorops"
         minSdk = 26
         targetSdk = 35
-        versionCode = 17
-        versionName = "0.4.5"
+        versionCode = 18
+        versionName = "0.5.0"
     }
 
     signingConfigs {

@@ -25,6 +25,13 @@ import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.data.GcodeOutlines
+import dev.vantara.replicatorops.data.FoundPrinter
+import dev.vantara.replicatorops.data.SensorSweep
+import dev.vantara.replicatorops.data.TimelapseFile
+import dev.vantara.replicatorops.widget.ReplicatorWidget
+import dev.vantara.replicatorops.widget.WidgetData
+import android.content.Intent
+import androidx.core.content.FileProvider
 import dev.vantara.replicatorops.data.Outline
 import dev.vantara.replicatorops.alert.RedAlertService
 import dev.vantara.replicatorops.ui.lcars.Chirp
@@ -54,6 +61,7 @@ enum class Screen(val label: String) {
     CONTROL("Control"),
     SYSTEMS("Systems"),
     FILES("Files"),
+    TIMELAPSE("Timelapse"),
     CONFIG("Config"),
     STORES("Stores"),
     LOG("Log");
@@ -66,7 +74,7 @@ enum class Screen(val label: String) {
         }
 }
 
-val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.CONFIG)
+val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.TIMELAPSE, Screen.CONFIG)
 
 enum class LogPeriod(val label: String, val days: Int?) { DAY("Day", 1), WEEK("Week", 7), MONTH("Month", 30), YEAR("Year", 365), ALL("All", null); }
 
@@ -91,6 +99,15 @@ sealed interface LoadState {
     data class Unsupported(val name: String) : LoadState
     data class Uploading(val pattern: IncomingPattern, val progress: Float) : LoadState
     data class Failed(val message: String, val pattern: IncomingPattern?) : LoadState
+}
+
+/** Sensor sweep (printer discovery) state. */
+data class SweepState(val running: Boolean = false, val found: List<FoundPrinter> = emptyList(), val ran: Boolean = false)
+
+/** Timelapse save/share progress. */
+sealed interface ReelState {
+    data object Idle : ReelState
+    data class Busy(val name: String, val verb: String, val progress: Float) : ReelState
 }
 
 /** Target lock outlines read from the print file. */
@@ -210,6 +227,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _retrieveState = MutableStateFlow<RetrieveState>(RetrieveState.Idle)
     val retrieveState: StateFlow<RetrieveState> = _retrieveState.asStateFlow()
 
+    // ---- Sensor sweep ---------------------------------------------------------------
+
+    private val sweeper = SensorSweep(app, http)
+    private val _sweep = MutableStateFlow(SweepState())
+    val sweep: StateFlow<SweepState> = _sweep.asStateFlow()
+
+    // ---- Timelapse archive -----------------------------------------------------------
+
+    private val _reels = MutableStateFlow<List<TimelapseFile>>(emptyList())
+    val reels: StateFlow<List<TimelapseFile>> = _reels.asStateFlow()
+    private val _reelsLoading = MutableStateFlow(false)
+    val reelsLoading: StateFlow<Boolean> = _reelsLoading.asStateFlow()
+    private val _reelsError = MutableStateFlow<String?>(null)
+    val reelsError: StateFlow<String?> = _reelsError.asStateFlow()
+    private val _reelState = MutableStateFlow<ReelState>(ReelState.Idle)
+    val reelState: StateFlow<ReelState> = _reelState.asStateFlow()
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
 
@@ -217,6 +251,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         Chirp.enabled = prefs.chirps
         prefs.endpoint()?.let { client.connect(it) }
         RedAlertService.sync(app)
+        // First launch with no printer set: look for one straight away.
+        if (prefs.host.isBlank()) sensorSweep()
+        viewModelScope.launch {
+            // Keep the home screen widget current while the app is open.
+            printer.map { WidgetData.of(it) }.distinctUntilChanged().collect { ReplicatorWidget.push(app, it) }
+        }
         if (prefs.lastSeenVersion != appVersion) {
             val pending = CaptainsLog.since(captainsLog, prefs.lastSeenVersion)
                 .ifEmpty { captainsLog.filter { it.version == appVersion } }
@@ -300,6 +340,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun select(screen: Screen) {
         _screen.value = screen
         if (screen == Screen.LOG) loadHistory()
+        if (screen == Screen.TIMELAPSE) refreshReels()
     }
 
     fun back() { _screen.value = _screen.value.parent }
@@ -328,6 +369,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _meta.value = emptyMap()
         client.connect(ep)
         RedAlertService.sync(getApplication())
+    }
+
+    fun sensorSweep() {
+        if (_sweep.value.running) return
+        _sweep.value = SweepState(running = true)
+        viewModelScope.launch {
+            val all = runCatching {
+                sweeper.sweep { p -> _sweep.update { st -> st.copy(found = (st.found + p).distinctBy { it.address }) } }
+            }.getOrDefault(_sweep.value.found)
+            _sweep.value = SweepState(running = false, found = all, ran = true)
+            if (all.isEmpty()) Chirp.deny() else Chirp.confirm()
+        }
     }
 
     fun setRedAlert(on: Boolean) {
@@ -779,6 +832,66 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     Chirp.deny()
                 }
         }
+    }
+
+    // ---- Timelapse archive -------------------------------------------------------------
+
+    fun refreshReels() {
+        if (!printer.value.online) return
+        viewModelScope.launch {
+            _reelsLoading.value = true
+            runCatching { client.listTimelapses() }
+                .onSuccess { _reels.value = it; _reelsError.value = null }
+                .onFailure { e ->
+                    _reels.value = emptyList()
+                    _reelsError.value = if ((e.message ?: "").contains("timelapse", true) || (e.message ?: "").contains("root", true))
+                        "No timelapse archive on this printer. Turn timelapse on in QIDI Studio or Fluidd, and moonraker-timelapse saves videos here."
+                    else e.message ?: "Couldn't read the timelapse archive"
+                }
+            _reelsLoading.value = false
+        }
+    }
+
+    fun reelUrl(f: TimelapseFile): String? = client.endpoint?.fileUrl("timelapse", f.path)
+    fun reelThumbUrl(f: TimelapseFile): String? = f.thumbnailPath?.let { client.endpoint?.fileUrl("timelapse", it) }
+
+    fun saveReel(f: TimelapseFile, dest: Uri) {
+        val ep = client.endpoint ?: return
+        viewModelScope.launch {
+            _reelState.value = ReelState.Busy(f.name, "Saving", 0f)
+            runCatching {
+                loader.downloadUrl(ep, ep.fileUrl("timelapse", f.path), dest) { pr -> _reelState.value = ReelState.Busy(f.name, "Saving", pr) }
+            }.onSuccess { Chirp.confirm(); say("${f.name} saved to your device") }
+                .onFailure { Chirp.deny(); say(it.message ?: "Save failed") }
+            _reelState.value = ReelState.Idle
+        }
+    }
+
+    /** Copies the video to the phone, then opens Android's share sheet. */
+    fun shareReel(f: TimelapseFile, launch: (Intent) -> Unit) {
+        val ep = client.endpoint ?: return
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            _reelState.value = ReelState.Busy(f.name, "Preparing", 0f)
+            runCatching {
+                val dir = File(app.cacheDir, "shared").apply { mkdirs() }
+                dir.listFiles()?.forEach { it.delete() }
+                val out = File(dir, PatternLoader.safeName(f.name))
+                loader.downloadUrl(ep, ep.fileUrl("timelapse", f.path), Uri.fromFile(out)) { pr -> _reelState.value = ReelState.Busy(f.name, "Preparing", pr) }
+                FileProvider.getUriForFile(app, "${app.packageName}.updates", out)
+            }.onSuccess { uri ->
+                val send = Intent(Intent.ACTION_SEND).setType("video/mp4").putExtra(Intent.EXTRA_STREAM, uri)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                launch(Intent.createChooser(send, "Share timelapse"))
+            }.onFailure { Chirp.deny(); say(it.message ?: "Couldn't prepare the video") }
+            _reelState.value = ReelState.Idle
+        }
+    }
+
+    fun deleteReel(f: TimelapseFile) = action("Timelapse deleted") {
+        client.deleteTimelapse(f.path)
+        f.thumbnailPath?.let { runCatching { client.deleteTimelapse(it) } }
+        _reels.update { list -> list.filterNot { it.path == f.path } }
     }
 
     fun dismissRetrieve() { _retrieveState.value = RetrieveState.Idle }

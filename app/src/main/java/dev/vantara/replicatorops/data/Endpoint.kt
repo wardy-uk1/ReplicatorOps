@@ -30,8 +30,11 @@ data class Endpoint(val baseUrl: String, val apiKey: String?) {
     }
 
     /** URL for a file under the gcodes root, with each path segment encoded. */
-    fun gcodeFileUrl(relativePath: String): String =
-        baseUrl + "/server/files/gcodes/" + encodePath(relativePath)
+    fun gcodeFileUrl(relativePath: String): String = fileUrl("gcodes", relativePath)
+
+    /** URL for a file under any Moonraker root (gcodes, timelapse, …). */
+    fun fileUrl(root: String, relativePath: String): String =
+        baseUrl + "/server/files/" + root + "/" + encodePath(relativePath)
 
     companion object {
         /**

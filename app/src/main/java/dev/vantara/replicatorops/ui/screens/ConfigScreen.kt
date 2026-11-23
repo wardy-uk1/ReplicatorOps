@@ -30,6 +30,7 @@ import dev.vantara.replicatorops.ui.lcars.Century24
 import dev.vantara.replicatorops.ui.lcars.Century25
 import dev.vantara.replicatorops.ui.lcars.LcarsButton
 import dev.vantara.replicatorops.ui.lcars.LcarsChip
+import dev.vantara.replicatorops.ui.lcars.LcarsBracketPanel
 import dev.vantara.replicatorops.ui.lcars.LcarsConfirm
 import dev.vantara.replicatorops.ui.lcars.LcarsFont
 import dev.vantara.replicatorops.ui.lcars.LcarsLabel
@@ -58,6 +59,36 @@ fun ConfigScreen(vm: AppViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LcarsChip("Chirps on", selected = chirps) { vm.setChirps(true) }
             LcarsChip("Chirps off", selected = !chirps) { vm.setChirps(false) }
+        }
+
+        LcarsSectionHeader("Sensor sweep", color = s.nav[0])
+        val sweep by vm.sweep.collectAsState()
+        LcarsLabel(
+            "Finds QIDI and other Klipper printers on your Wi-Fi.",
+            color = s.hint, size = 13.sp, maxLines = 2,
+        )
+        Spacer(Modifier.height(6.dp))
+        LcarsButton(if (sweep.running) "Sweeping…" else "Sensor sweep", color = s.nav[0], enabled = !sweep.running) { vm.sensorSweep() }
+        if (sweep.running) {
+            LcarsLabel("Scanning local network… ${sweep.found.size} found", color = s.accent2, size = 13.sp)
+        } else if (sweep.ran && sweep.found.isEmpty()) {
+            LcarsLabel(
+                "No printers detected. Check the phone is on the same Wi-Fi as the printer, or type the address below.",
+                color = s.alert, size = 13.sp, maxLines = 3,
+            )
+        }
+        sweep.found.forEach { f ->
+            Spacer(Modifier.height(6.dp))
+            LcarsBracketPanel(color = s.nav[0]) {
+                LcarsReadout(f.name, f.address, valueColor = s.accent)
+                if (f.needsKey) LcarsLabel("Needs an API key", color = s.hint, size = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LcarsButton("Lock on", color = s.accent, height = 36.dp) {
+                        host = f.address
+                        vm.connect(f.address, apiKey)
+                    }
+                }
+            }
         }
 
         LcarsSectionHeader("Subspace link", color = s.nav[1])
