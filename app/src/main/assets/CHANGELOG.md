@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.4.5
+## 0.4.5 · Stardate 202623.11
 - Config: Klipper restart and Firmware restart now sit one above the other, so their names fit
 - Updated the About text
 
