@@ -1102,7 +1102,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- On-phone slicer (Beta) ---------------------------------------------------------
 
-    /** Kiri:Moto in a WebView; created the first time the Slicer is used (Beta only). */
+    /** CuraEngine slicer; created the first time the Slicer is used (Beta only). */
     val slicer: SlicerEngine? by lazy { if (BuildConfig.BETA) SlicerEngine(getApplication()) else null }
     private val _sliceSettings = MutableStateFlow(SliceSettings())
     val sliceSettings: StateFlow<SliceSettings> = _sliceSettings.asStateFlow()
@@ -1187,7 +1187,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 filamentGrams = null,
                 layerHeight = s.layerHeight,
                 objectHeight = done.plate.size.third.toDouble(),
-                slicer = "Kiri:Moto (Replicator Ops)",
+                slicer = "CuraEngine (Replicator Ops)",
                 filamentTypes = listOf(s.filament),
             )
         )

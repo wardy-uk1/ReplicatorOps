@@ -3,11 +3,7 @@ package dev.vantara.replicatorops.slicer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -50,11 +46,20 @@ data class SliceSettings(
     val fan: Int = 100,
     val fanFromLayer: Int = 1,
     val minLayerTime: Int = 8,
+    /** Smooth the top surfaces with a second, flat pass of the hot nozzle. */
+    val ironing: Boolean = false,
+    /** Cura z_seam_type: back, shortest, random, sharpest_corner. */
+    val seam: String = "sharpest_corner",
     /** Where the defaults came from, for the screen. */
     val source: String = "QIDI Q2C · PLA defaults",
 ) {
     companion object {
-        val INFILL_PATTERNS = listOf("grid", "gyroid", "hex", "triangle", "cubic", "linear")
+        /** CuraEngine infill patterns, with the names shown on screen. */
+        val INFILL_PATTERNS = listOf(
+            "grid" to "Grid", "gyroid" to "Gyroid", "cubic" to "Cubic", "triangles" to "Triangles",
+            "trihexagon" to "Tri-hex", "lines" to "Lines", "lightning" to "Lightning",
+        )
+        val SEAMS = listOf("sharpest_corner" to "Corner", "back" to "Back", "shortest" to "Nearest", "random" to "Random")
 
         /** Fills settings from an Orca/QIDI/Bambu project_settings.config. */
         fun fromProject(p: JsonObject?, base: SliceSettings = SliceSettings()): SliceSettings {
@@ -68,12 +73,20 @@ data class SliceSettings(
             fun int(key: String): Int? = num(key)?.roundToInt()
             val pattern = when (str("sparse_infill_pattern")) {
                 "gyroid" -> "gyroid"
-                "honeycomb", "3dhoneycomb" -> "hex"
-                "triangles", "tri-hexagon" -> "triangle"
-                "cubic", "adaptivecubic" -> "cubic"
-                "line", "zig-zag", "monotonic", "monotonicline" -> "linear"
+                "honeycomb", "3dhoneycomb", "tri-hexagon" -> "trihexagon"
+                "triangles" -> "triangles"
+                "cubic", "adaptivecubic", "supportcubic" -> "cubic"
+                "lightning" -> "lightning"
+                "line", "zig-zag", "monotonic", "monotonicline" -> "lines"
                 null -> base.infillPattern
                 else -> "grid"
+            }
+            val seam = when (str("seam_position")) {
+                "back" -> "back"
+                "nearest" -> "shortest"
+                "random" -> "random"
+                "aligned" -> "sharpest_corner"
+                else -> base.seam
             }
             val printer = str("printer_model") ?: str("printer_settings_id")
             return base.copy(
@@ -84,6 +97,8 @@ data class SliceSettings(
                 bottomLayers = int("bottom_shell_layers") ?: base.bottomLayers,
                 infill = int("sparse_infill_density") ?: base.infill,
                 infillPattern = pattern,
+                seam = seam,
+                ironing = str("ironing_type")?.let { it != "no ironing" && it != "none" } ?: base.ironing,
                 supports = str("enable_support")?.let { it == "1" || it == "true" } ?: base.supports,
                 treeSupports = str("support_type")?.contains("tree") ?: base.treeSupports,
                 supportAngle = int("support_threshold_angle")?.takeIf { it > 0 } ?: base.supportAngle,
@@ -109,76 +124,85 @@ data class SliceSettings(
         }
     }
 
-    /** Kiri:Moto "process" settings. */
-    fun kiriProcess(): JsonObject = buildJsonObject {
-        put("processName", "Replicator Ops")
-        put("sliceHeight", layerHeight)
-        put("firstSliceHeight", firstLayerHeight)
-        put("sliceShells", walls)
-        put("sliceTopLayers", topLayers)
-        put("sliceBottomLayers", bottomLayers)
-        put("sliceFillSparse", infill / 100.0)
-        put("sliceFillType", if (infill <= 0) "none" else infillPattern)
-        put("sliceSupportType", if (supports) "automatic" else "disabled")
-        put("sliceSupportTree", supports && treeSupports)
-        put("sliceSupportAngle", supportAngle)
-        put("sliceSupportDensity", 0.15)
-        put("sliceSupportOffset", 0.4)
-        put("firstLayerBrim", brim)
-        put("outputTemp", nozzleTemp)
-        put("firstLayerNozzleTemp", firstLayerNozzleTemp)
-        put("outputBedTemp", bedTemp)
-        put("firstLayerBedTemp", firstLayerBedTemp)
-        put("outputFeedrate", infillSpeed)
-        put("outputFinishrate", wallSpeed)
-        put("firstLayerRate", firstLayerSpeed)
-        put("firstLayerFillRate", firstLayerSpeed)
-        put("outputSeekrate", travelSpeed)
-        put("outputMaxFlowrate", maxFlow)
-        put("outputRetractDist", retraction)
-        put("outputRetractSpeed", retractionSpeed)
-        put("zHopDistance", zHop)
-        put("outputFanSpeed", (fan * 255 / 100).coerceIn(0, 255))
-        put("outputFanLayer", fanFromLayer)
-        put("outputMinLayerTime", minLayerTime)
-        put("outputShellMult", 1.0)
-        put("outputFillMult", 1.0)
-        put("outputSparseMult", 1.0)
-        put("sliceLineWidth", 0.42)
+    /**
+     * The CuraEngine settings this screen controls, plus the QIDI Q2C machine itself.
+     * Everything else is worked out from these by Cura's own formulas (see [CuraSettings]).
+     */
+    fun curaOverrides(): Map<String, Any?> = buildMap {
+        // Machine: QIDI Q2C, Klipper (Marlin-style G-code), relative extrusion like QIDI Studio.
+        put("machine_name", "QIDI Q2C")
+        put("machine_width", 270.0); put("machine_depth", 270.0); put("machine_height", 256.0)
+        put("machine_center_is_zero", false)
+        put("machine_heated_bed", true)
+        put("machine_gcode_flavor", "RepRap (Marlin/Sprinter)")
+        put("machine_extruder_count", 1L)
+        put("machine_nozzle_size", 0.4)
+        put("material_diameter", 1.75)
+        put("relative_extrusion", true)
+        put("machine_acceleration", 10000.0)
+        put("machine_max_acceleration_x", 20000.0); put("machine_max_acceleration_y", 20000.0)
+        put("machine_max_feedrate_x", 500.0); put("machine_max_feedrate_y", 500.0)
+        // PRINT_START heats everything itself, so Cura mustn't add its own M104/M190 first.
+        put("material_print_temp_prepend", false)
+        put("material_bed_temp_prepend", false)
+        put("machine_start_gcode", q2cStart().joinToString("\n"))
+        put("machine_end_gcode", Q2C_END.joinToString("\n"))
+        // Quality & strength
+        put("layer_height", layerHeight)
+        put("layer_height_0", firstLayerHeight)
+        put("wall_line_count", walls.toLong())
+        put("top_layers", topLayers.toLong())
+        put("bottom_layers", bottomLayers.toLong())
+        put("infill_sparse_density", infill.toDouble())
+        put("infill_pattern", infillPattern)
+        put("z_seam_type", seam)
+        put("ironing_enabled", ironing)
+        // Supports & adhesion
+        put("support_enable", supports)
+        put("support_structure", if (treeSupports) "tree" else "normal")
+        // QIDI/Orca measure the threshold from horizontal, Cura from vertical.
+        put("support_angle", (90 - supportAngle).coerceIn(0, 90).toDouble())
+        if (brim > 0) {
+            put("adhesion_type", "brim"); put("brim_width", brim)
+        } else {
+            put("adhesion_type", "skirt")
+        }
+        // Filament & temperatures
+        put("material_print_temperature", nozzleTemp.toDouble())
+        put("material_print_temperature_layer_0", firstLayerNozzleTemp.toDouble())
+        put("material_initial_print_temperature", nozzleTemp.toDouble())
+        put("material_final_print_temperature", nozzleTemp.toDouble())
+        put("material_bed_temperature", bedTemp.toDouble())
+        put("material_bed_temperature_layer_0", firstLayerBedTemp.toDouble())
+        // Speed
+        put("speed_print", infillSpeed.toDouble())
+        put("speed_infill", infillSpeed.toDouble())
+        put("speed_wall_0", wallSpeed.toDouble())
+        put("speed_wall_x", wallSpeed.toDouble())
+        put("speed_layer_0", firstLayerSpeed.toDouble())
+        put("speed_travel", travelSpeed.toDouble())
+        put("retraction_enable", retraction > 0)
+        put("retraction_amount", retraction)
+        put("retraction_speed", retractionSpeed.toDouble())
+        put("retraction_hop_enabled", zHop > 0)
+        put("retraction_hop", zHop)
+        // Cooling
+        put("cool_fan_enabled", fan > 0)
+        put("cool_fan_speed", fan.toDouble())
+        put("cool_fan_speed_max", fan.toDouble())
+        put("cool_fan_speed_0", 0.0)
+        put("cool_fan_full_layer", (fanFromLayer + 1).toLong())
+        put("cool_min_layer_time", minLayerTime.toDouble())
     }
 
-    /**
-     * Kiri:Moto "device" for the QIDI Q2C: bed, nozzle, and QIDI's own start/end
-     * G-code (from QIDI Studio's Q2C profile), so the printer runs its usual
-     * PRINT_START routine and takes filament from the QIDI Box (tool T0).
-     */
-    fun kiriDevice(): JsonObject = buildJsonObject {
-        put("deviceName", "QIDI Q2C (Replicator Ops)")
-        put("bedWidth", 270)
-        put("bedDepth", 270)
-        put("maxHeight", 256)
-        put("originCenter", false)
-        put("fwRetract", false)
-        put("gcodeTime", 1)
-        putJsonArray("extruders") {
-            add(buildJsonObject {
-                put("extFilament", 1.75); put("extNozzle", 0.4); put("extOffsetX", 0); put("extOffsetY", 0)
-            })
-        }
-        putJsonArray("gcodePre") { Q2C_START(firstLayerHeight, maxFlow).forEach { add(JsonPrimitive(it)) } }
-        putJsonArray("gcodePost") { Q2C_END.forEach { add(JsonPrimitive(it)) } }
-        putJsonArray("gcodeLayer") {
-            add(JsonPrimitive(";LAYER_CHANGE"))
-            add(JsonPrimitive("SET_PRINT_STATS_INFO CURRENT_LAYER={layer + 1}"))
-        }
-        putJsonArray("gcodeFan") { add(JsonPrimitive("M106 S{fan_speed}")) }
-        putJsonArray("gcodeChange") { add(JsonPrimitive("T{tool}")) }
-        putJsonObject("extras") { }
-    }
+    private fun q2cStart() = Q2C_START(firstLayerHeight, maxFlow, firstLayerNozzleTemp, firstLayerBedTemp)
 }
 
+/** Replaced with the real layer count once CuraEngine has sliced (see SlicerEngine). */
+const val TOTAL_LAYER_MARKER = "SET_PRINT_STATS_INFO TOTAL_LAYER={layers}"
+
 /** QIDI Studio's Q2C start G-code, with its purge lines worked out for this filament's flow. */
-private fun Q2C_START(firstLayer: Double, maxFlow: Double): List<String> {
+private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: Int): List<String> {
     val slow = (maxFlow / 1.2 * 60).roundToInt()
     val wipeSlow = (maxFlow / 0.15 / 4 * 60).roundToInt()
     val wipeFast = (maxFlow / 0.15 * 60).roundToInt()
@@ -200,12 +224,12 @@ private fun Q2C_START(firstLayer: Double, maxFlow: Double): List<String> {
         "M400",
     )
     return listOf(
-        "; Sliced on the phone by Replicator Ops Beta (Kiri:Moto engine) for QIDI Q2C",
-        "PRINT_START BED={bed_temp} HOTEND={temp} EXTRUDER=0",
-        "SET_PRINT_STATS_INFO TOTAL_LAYER={layers}",
+        "; Sliced on the phone by Replicator Ops Beta (CuraEngine) for QIDI Q2C",
+        "PRINT_START BED=$bedTemp HOTEND=$temp EXTRUDER=0",
+        TOTAL_LAYER_MARKER,
         "M83",
-        "M140 S{bed_temp}",
-        "M104 S{temp}",
+        "M140 S$bedTemp",
+        "M104 S$temp",
         "G4 P3000",
         "T0",
         "G90",

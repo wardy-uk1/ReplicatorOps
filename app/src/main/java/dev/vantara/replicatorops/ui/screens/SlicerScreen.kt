@@ -39,13 +39,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import dev.vantara.replicatorops.slicer.ModelFile
 import dev.vantara.replicatorops.slicer.Plate
 import dev.vantara.replicatorops.slicer.SliceSettings
@@ -63,7 +61,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Beta: slice STL and 3MF files on the phone (Kiri:Moto engine), then send them to the printer.
+ * Beta: slice STL and 3MF files on the phone (CuraEngine), then send them to the printer.
  * The 3D preview stays pinned (top in portrait, left in landscape); settings scroll in
  * fold-away sections; the Slice / Send bar stays at the bottom.
  */
@@ -98,8 +96,6 @@ fun SlicerScreen(vm: AppViewModel) {
         @Composable
         fun Preview(mod: Modifier) {
             Box(mod.clip(RoundedCornerShape(14.dp)).border(2.dp, s.frameAlt, RoundedCornerShape(14.dp))) {
-                // The slicing engine's page runs in a tiny hidden WebView; the preview is drawn natively.
-                AndroidView(factory = { engine.detach(); engine.webView }, modifier = Modifier.size(1.dp).alpha(0f))
                 MeshPreview(model?.second, status, busyStatus, Modifier.fillMaxSize())
             }
         }
@@ -185,7 +181,7 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
     LcarsButton("Reset settings", color = s.frameAlt, height = 34.dp, enabled = !busy) { vm.resetSliceSettings() }
     Spacer(Modifier.height(10.dp))
     LcarsLabel(
-        "Beta: slicing by Kiri:Moto (grid.space, MIT licence) with QIDI's Q2C start and end G-code. Check the first layer of new prints.",
+        "Beta: slicing by CuraEngine (Ultimaker, AGPL-3.0 licence) with QIDI's Q2C start and end G-code. Check the first layer of new prints.",
         color = s.hint, size = 11.sp, maxLines = 4,
     )
     Spacer(Modifier.height(16.dp))
@@ -267,7 +263,8 @@ private fun SettingsSections(cfg: SliceSettings, enabled: Boolean, onChange: (Sl
             { set(cfg.copy(fan = (cfg.fan - 10).coerceAtLeast(0))) }, { set(cfg.copy(fan = (cfg.fan + 10).coerceAtMost(100))) })
     }
 
-    Section("Quality", "%.2f mm layers".format(cfg.layerHeight), s.nav[1]) {
+    val seamName = SliceSettings.SEAMS.firstOrNull { it.first == cfg.seam }?.second ?: cfg.seam
+    Section("Quality", "%.2f mm layers · seam: %s%s".format(cfg.layerHeight, seamName.lowercase(), if (cfg.ironing) " · ironing" else ""), s.nav[1]) {
         SubLabel("Layer height (mm)")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(0.08, 0.12, 0.16, 0.2, 0.24, 0.28).forEach { h ->
@@ -277,9 +274,19 @@ private fun SettingsSections(cfg: SliceSettings, enabled: Boolean, onChange: (Sl
         Stepper("First layer", "%.2f mm".format(cfg.firstLayerHeight), enabled,
             { set(cfg.copy(firstLayerHeight = (((cfg.firstLayerHeight - 0.04) * 100).roundToInt() / 100.0).coerceAtLeast(0.12))) },
             { set(cfg.copy(firstLayerHeight = (((cfg.firstLayerHeight + 0.04) * 100).roundToInt() / 100.0).coerceAtMost(0.32))) })
+        SubLabel("Seam position")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SliceSettings.SEAMS.forEach { (id, label) -> LcarsChip(label, selected = cfg.seam == id) { set(cfg.copy(seam = id)) } }
+        }
+        SubLabel("Ironing (smooth top surfaces)")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LcarsChip("Off", selected = !cfg.ironing) { set(cfg.copy(ironing = false)) }
+            LcarsChip("On", selected = cfg.ironing) { set(cfg.copy(ironing = true)) }
+        }
     }
 
-    Section("Strength", "${cfg.walls} walls · ${cfg.infill}% ${cfg.infillPattern}", s.nav[2]) {
+    val patternName = SliceSettings.INFILL_PATTERNS.firstOrNull { it.first == cfg.infillPattern }?.second ?: cfg.infillPattern
+    Section("Strength", "${cfg.walls} walls · ${cfg.infill}% ${patternName.lowercase()}", s.nav[2]) {
         Stepper("Walls", cfg.walls.toString(), enabled,
             { set(cfg.copy(walls = (cfg.walls - 1).coerceAtLeast(1))) }, { set(cfg.copy(walls = (cfg.walls + 1).coerceAtMost(10))) })
         Stepper("Top layers", cfg.topLayers.toString(), enabled,
@@ -298,18 +305,18 @@ private fun SettingsSections(cfg: SliceSettings, enabled: Boolean, onChange: (Sl
         )
         SubLabel("Pattern")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            SliceSettings.INFILL_PATTERNS.forEach { pt -> LcarsChip(pt, selected = cfg.infillPattern == pt) { set(cfg.copy(infillPattern = pt)) } }
+            SliceSettings.INFILL_PATTERNS.forEach { (id, label) -> LcarsChip(label, selected = cfg.infillPattern == id) { set(cfg.copy(infillPattern = id)) } }
         }
     }
 
-    val supportText = if (!cfg.supports) "No supports" else if (cfg.treeSupports) "Tree supports" else "Supports"
+    val supportText = if (!cfg.supports) "No supports" else if (cfg.treeSupports) "Organic tree supports" else "Supports"
     val brimText = if (cfg.brim <= 0) "no brim" else "${cfg.brim.roundToInt()} mm brim"
     Section("Support & adhesion", "$supportText · $brimText", s.nav[3]) {
         SubLabel("Supports")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             LcarsChip("Off", selected = !cfg.supports) { set(cfg.copy(supports = false)) }
             LcarsChip("Normal", selected = cfg.supports && !cfg.treeSupports) { set(cfg.copy(supports = true, treeSupports = false)) }
-            LcarsChip("Tree", selected = cfg.supports && cfg.treeSupports) { set(cfg.copy(supports = true, treeSupports = true)) }
+            LcarsChip("Organic tree", selected = cfg.supports && cfg.treeSupports) { set(cfg.copy(supports = true, treeSupports = true)) }
         }
         if (cfg.supports) {
             Stepper("Overhang angle", "${cfg.supportAngle}°", enabled,

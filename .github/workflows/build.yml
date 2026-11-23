@@ -39,47 +39,40 @@ jobs:
             echo "channel=stable" >> "$GITHUB_OUTPUT"; echo "flavor=Stable" >> "$GITHUB_OUTPUT"; echo "branch=main" >> "$GITHUB_OUTPUT"
           fi
 
-      # ---- Beta: build the Kiri:Moto slicing engine (MIT) into the app's assets ----------
-      - name: Set up Node (beta)
+      # ---- Beta: build the CuraEngine slicer (AGPL-3.0, Ultimaker) for the phone and for CI --
+      - name: Cache CuraEngine build (beta)
         if: steps.ver.outputs.channel == 'beta'
-        uses: actions/setup-node@v4
+        uses: actions/cache@v4
         with:
-          node-version: '22'
+          path: native/curaengine/work
+          key: curaengine-${{ hashFiles('native/curaengine/build.sh', 'native/curaengine/StandardProjectSettings.cmake') }}
 
-      - name: Fetch Kiri:Moto (beta)
+      - name: Build CuraEngine (beta)
         if: steps.ver.outputs.channel == 'beta'
-        uses: actions/checkout@v4
-        with:
-          repository: GridSpace/grid-apps
-          ref: d138275bbe9d4e4030d8cb8b2dcf66607da9295a
-          path: grid-apps
-
-      - name: Build Kiri:Moto engine (beta)
-        if: steps.ver.outputs.channel == 'beta'
-        working-directory: grid-apps
         run: |
-          node ../.github/scripts/patch-kiri.mjs .
-          npm install --ignore-scripts --no-audit --no-fund
-          npm run webpack-ext
-          node bin/esbuild.config.mjs prod
-          dest=../app/src/beta/assets
-          mkdir -p $dest/kiri $dest/wasm $dest/licenses
-          cp src/pack/kiri-eng.js src/pack/kiri-work.js src/pack/kiri-pool.js $dest/kiri/
-          cp src/wasm/*.wasm $dest/wasm/
-          cp license.md $dest/licenses/Kiri-Moto-LICENSE.md
-          ls -la $dest/kiri $dest/wasm
+          sudo apt-get install -y ninja-build >/dev/null
+          native/curaengine/build.sh host
+          native/curaengine/build.sh android "$ANDROID_NDK_LATEST_HOME"
+          w=native/curaengine/work
+          mkdir -p app/src/beta/jniLibs/arm64-v8a app/src/beta/assets/cura app/src/beta/assets/licenses
+          cp $w/out-android/CuraEngine app/src/beta/jniLibs/arm64-v8a/libcuraengine.so
+          python3 native/curaengine/tools/compile_defs.py $w/out-host/definitions app/src/beta/assets/cura/settings.json
+          cp $w/CuraEngine/LICENSE app/src/beta/assets/licenses/CuraEngine-LICENSE.txt
+          cp $w/Cura/LICENSE app/src/beta/assets/licenses/Cura-definitions-LICENSE.txt
+          file app/src/beta/jniLibs/arm64-v8a/libcuraengine.so
+          echo "CURA_ENGINE=$GITHUB_WORKSPACE/$w/out-host/CuraEngine" >> "$GITHUB_ENV"
+          echo "CURA_SETTINGS=$GITHUB_WORKSPACE/app/src/beta/assets/cura/settings.json" >> "$GITHUB_ENV"
 
-      # Slice a 20 mm cube with the app's own Q2C settings in headless Chrome, so a broken
-      # engine build never ships.
+      # Slice test models with the app's own settings code and CuraEngine (built for this
+      # machine), and check the app works out Cura's settings exactly as Cura's formulas do.
       - name: Slicer self-test (beta)
         if: steps.ver.outputs.channel == 'beta'
         run: |
           chmod +x gradlew
-          ./gradlew testBetaDebugUnitTest --tests '*SliceSettingsTest*' --console=plain
-          cp app/build/selftest.json app/src/beta/assets/slicer/selftest.json
-          cd "$RUNNER_TEMP" && npm init -y >/dev/null && npm install --no-audit --no-fund puppeteer-core@23 >/dev/null
-          node "$GITHUB_WORKSPACE/.github/scripts/slicer-selftest.mjs" "$GITHUB_WORKSPACE/app/src/beta/assets"
-          rm "$GITHUB_WORKSPACE/app/src/beta/assets/slicer/selftest.json"
+          ./gradlew testBetaDebugUnitTest --tests '*Slic*' --console=plain -i | grep -E "layers=|PASSED|FAILED|SKIPPED" || true
+          ./gradlew testBetaDebugUnitTest --tests '*Slic*' --console=plain
+          ls app/build/cura-check | head
+          python3 native/curaengine/tools/compare.py native/curaengine/work/out-host/definitions app/build/cura-check
 
       # A new versionName on main publishes a release (once per version).
       - name: Is this a new release?

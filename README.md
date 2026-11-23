@@ -4,7 +4,9 @@
 
 An open-source, LCARS-styled Android app for controlling QIDI (and other Klipper/Moonraker) 3D printers. It's a clean-room alternative to QIDI Maker: it talks straight to the printer's **Moonraker** API over your LAN or Tailscale, with no account or cloud needed.
 
-> Not affiliated with QIDI Tech or Paramount. "LCARS" styling is an original fan interpretation.
+> The Beta includes CuraEngine and Cura's printer definitions by Ultimaker B.V., used under the GNU Affero General Public License v3.0 and LGPL-3.0; their source is linked above and the exact versions are pinned in `native/curaengine/build.sh`.
+
+Not affiliated with QIDI Tech, Ultimaker or Paramount. "LCARS" styling is an original fan interpretation.
 
 ## Screens
 
@@ -92,6 +94,13 @@ app/src/main/java/dev/vantara/replicatorops/
 docs/qidi-maker-inspection.md   Notes from inspecting QIDI Maker 1.1.3
 ```
 
+## Beta: on-phone slicer
+
+The `beta` branch builds **Replicator Ops Beta**, a separate app with a Slicer screen that slices STL and 3MF files on the phone with [CuraEngine](https://github.com/Ultimaker/CuraEngine) (Ultimaker, AGPL-3.0) and sends the G-code to the printer.
+
+- `native/curaengine/build.sh` builds CuraEngine without Conan, for Android (arm64, packaged as `libcuraengine.so`) and for the CI machine.
+- `native/curaengine/tools/compile_defs.py` turns Cura's setting definitions into the app's settings table; the app evaluates Cura's setting formulas itself (`CuraSettings.kt`). CI checks the results match Cura's formulas run in Python (`resolve.py`) and slices test models with the app's settings.
+
 ## Ideas for later
 
 Slicing station (OrcaSlicer on a home server), quick settings tile, Wear OS.
@@ -100,4 +109,6 @@ Slicing station (OrcaSlicer on a home server), quick settings tile, Wear OS.
 
 Replicator Ops is free software under the [GNU General Public License v3.0](LICENSE). You can use, study, change and share it; anything you distribute that is based on it must also be released under GPL-3.0 with its source code.
 
-Not affiliated with QIDI Tech or Paramount.
+The Beta includes CuraEngine and Cura's printer definitions by Ultimaker B.V., used under the GNU Affero General Public License v3.0 and LGPL-3.0; their source is linked above and the exact versions are pinned in `native/curaengine/build.sh`.
+
+Not affiliated with QIDI Tech, Ultimaker or Paramount.

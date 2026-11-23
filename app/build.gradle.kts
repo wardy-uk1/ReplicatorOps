@@ -25,8 +25,8 @@ android {
         applicationId = "dev.vantara.replicatorops"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1107
-        versionName = "1.1.0-beta.7"
+        versionCode = 1108
+        versionName = "1.1.0-beta.8"
     }
 
     // Two editions: the normal app, and a Beta that installs alongside it with the
@@ -53,6 +53,12 @@ android {
                 keyPassword = signingValue("SIGNING_KEY_PASSWORD", "keyPassword")
             }
         }
+    }
+
+    // The Beta's CuraEngine is a program, run from the app's native library folder, so
+    // native libraries must be unpacked on install rather than left inside the APK.
+    packaging {
+        jniLibs { useLegacyPackaging = true }
     }
 
     buildTypes {
@@ -105,7 +111,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     // Beta slicer: Kiri:Moto runs in a WebView served from the app's assets.
-    implementation("androidx.webkit:webkit:1.12.1")
 
     testImplementation("junit:junit:4.13.2")
 

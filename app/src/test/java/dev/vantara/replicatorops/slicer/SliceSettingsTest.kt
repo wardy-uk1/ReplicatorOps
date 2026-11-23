@@ -1,14 +1,10 @@
 package dev.vantara.replicatorops.slicer
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class SliceSettingsTest {
     // The relevant part of AttachmentHolderV1_Print.3mf's project_settings.config (OrcaSlicer, Qidi Q2C).
@@ -18,7 +14,8 @@ class SliceSettingsTest {
            "enable_support":"0","support_type":"tree(auto)","brim_type":"auto_brim","brim_width":"5",
            "nozzle_temperature":["210","210"],"nozzle_temperature_initial_layer":["210","210"],
            "hot_plate_temp":["60","60"],"filament_type":["PLA","PLA"],"outer_wall_speed":["200"],
-           "filament_max_volumetric_speed":["24.5","24.5"],"retraction_length":["0.8"],"z_hop":["0.4"]}"""
+           "filament_max_volumetric_speed":["24.5","24.5"],"retraction_length":["0.8"],"z_hop":["0.4"],
+           "seam_position":"aligned","ironing_type":"no ironing"}"""
     ).jsonObject
 
     @Test fun readsOrcaProject() {
@@ -31,29 +28,21 @@ class SliceSettingsTest {
         assertEquals(false, s.supports)
         assertEquals(true, s.treeSupports)
         assertEquals(5.0, s.brim, 1e-9)
+        assertEquals("sharpest_corner", s.seam)
+        assertEquals(false, s.ironing)
         assertTrue(s.source.contains("Qidi Q2C"))
     }
 
-    @Test fun kiriProfileHasQidiStart() {
-        val d = SliceSettings().kiriDevice()
-        val pre = d["gcodePre"].toString()
-        assertTrue(pre.contains("PRINT_START BED={bed_temp} HOTEND={temp}"))
-        assertTrue(pre.contains("T0"))
-        assertEquals(JsonPrimitive(270), d["bedWidth"])
-        val p = SliceSettings(infill = 0).kiriProcess()
-        assertEquals(JsonPrimitive("none"), p["sliceFillType"])
+    @Test fun curaProfileHasQidiStart() {
+        val o = SliceSettings(nozzleTemp = 215, firstLayerNozzleTemp = 215, bedTemp = 55, firstLayerBedTemp = 55).curaOverrides()
+        val start = o["machine_start_gcode"] as String
+        assertTrue(start.contains("PRINT_START BED=55 HOTEND=215"))
+        assertTrue(start.contains(TOTAL_LAYER_MARKER))
+        assertTrue(start.contains("T0"))
+        assertEquals(270.0, o["machine_width"])
+        assertEquals(false, o["material_print_temp_prepend"])
+        assertEquals(60.0, o["support_angle"])  // Orca 30° from horizontal = Cura 60° from vertical
+        assertEquals("brim", SliceSettings(brim = 5.0).curaOverrides()["adhesion_type"])
+        assertEquals("skirt", SliceSettings(brim = 0.0).curaOverrides()["adhesion_type"])
     }
-
-    /** Writes the config the CI self-test slices with (same as the app sends). */
-    @Test fun writeSelfTestConfig() {
-        val s = SliceSettings()
-        val cfg = buildJsonObject {
-            put("device", s.kiriDevice())
-            put("process", s.kiriProcess())
-        }
-        File("build").mkdirs()
-        File("build/selftest.json").writeText(cfg.toString())
-        assertTrue(File("build/selftest.json").length() > 500)
-    }
-
 }

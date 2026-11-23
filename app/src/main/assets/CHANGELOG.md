@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 1.1.0-beta.8
+- New slicing engine: CuraEngine (the engine inside Ultimaker Cura) now runs natively on the phone in place of Kiri:Moto. It's much faster (seconds rather than minutes) and doesn't run short of memory on big models
+- New settings: seam position, ironing for smooth tops, organic tree supports, and Cura's infill patterns including lightning
+- Every Cura setting is worked out the same way Cura does it, starting from your choices and QIDI's Q2C start and end G-code
+- Files from the phone show print time, filament and a preview on the printer's screen and in Files, and the printer tracks the current layer
+
 ## 1.1.0-beta.7 · Stardate 202623.11
 - Found the real cause of the slicer sticking at about 71%: one of Kiri:Moto's helper workers could hit an error (usually memory, on big models) and never answer, so the slice waited forever. That step now carries on by itself when it happens
 - Phones use fewer helper workers, which uses less memory
