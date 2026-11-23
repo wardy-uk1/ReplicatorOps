@@ -30,7 +30,7 @@ sealed interface SliceState {
 }
 
 /**
- * Runs CuraEngine (bundled in the Beta as libcuraengine.so, built from Ultimaker's source
+ * Runs CuraEngine (bundled as libcuraengine.so, built from Ultimaker's source
  * in CI) as a separate process. The app works out every Cura setting itself ([CuraSettings]),
  * hands CuraEngine one JSON file of values plus the plate as an STL, then finishes the G-code
  * for the Q2C ([CuraGcode]). One instance lives as long as the app, so slicing carries on

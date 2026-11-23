@@ -10,7 +10,8 @@ keystore.properties
 *.jks
 *.keystore
 
-# Built in CI from Ultimaker's CuraEngine / Cura for the Beta (native/curaengine/build.sh)
-app/src/beta/jniLibs/
-app/src/beta/assets/cura/
-app/src/beta/assets/licenses/
+# Built in CI from Ultimaker's CuraEngine / Cura (native/curaengine/build.sh)
+app/src/main/jniLibs/
+app/src/main/assets/cura/
+app/src/main/assets/licenses/CuraEngine-LICENSE.txt
+app/src/main/assets/licenses/Cura-definitions-LICENSE.txt

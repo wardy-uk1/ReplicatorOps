@@ -61,7 +61,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Beta: slice STL and 3MF files on the phone (CuraEngine), then send them to the printer.
+ * Slice STL and 3MF files on the phone (CuraEngine), then send them to the printer.
  * The 3D preview stays pinned (top in portrait, left in landscape); settings scroll in
  * fold-away sections; the Slice / Send bar stays at the bottom.
  */
@@ -148,7 +148,7 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
     when (state) {
         SliceState.Starting -> LcarsLabel("Starting the slicer…", color = s.accent2, size = 14.sp)
         SliceState.Empty -> LcarsLabel(
-            "Load an STL or 3MF (MakerWorld, Printables…), or share one to Replicator Ops Beta. It's sliced here on the phone for your Q2C.",
+            "Load an STL or 3MF (MakerWorld, Printables…), or share one to Replicator Ops. It's sliced here on the phone for your Q2C.",
             color = s.hint, size = 13.sp, maxLines = 4,
         )
         is SliceState.Loading -> LcarsLabel("Loading ${state.name}…", color = s.accent2, size = 14.sp)
@@ -181,7 +181,7 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
     LcarsButton("Reset settings", color = s.frameAlt, height = 34.dp, enabled = !busy) { vm.resetSliceSettings() }
     Spacer(Modifier.height(10.dp))
     LcarsLabel(
-        "Beta: slicing by CuraEngine (Ultimaker, AGPL-3.0 licence) with QIDI's Q2C start and end G-code. Check the first layer of new prints.",
+        "Slicing by CuraEngine (Ultimaker, AGPL-3.0 licence) with QIDI's Q2C start and end G-code. Check the first layer of new prints.",
         color = s.hint, size = 11.sp, maxLines = 4,
     )
     Spacer(Modifier.height(16.dp))

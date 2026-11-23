@@ -93,7 +93,7 @@ enum class Screen(val label: String) {
 
 val SIDEBAR_SCREENS: List<Screen> = buildList {
     addAll(listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES))
-    if (BuildConfig.BETA) add(Screen.SLICER) // on-phone slicer: Beta only
+    add(Screen.SLICER) // on-phone slicer (CuraEngine)
     addAll(listOf(Screen.TIMELAPSE, Screen.COMMANDS, Screen.CONFIG))
 }
 
@@ -1100,10 +1100,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ---- On-phone slicer (Beta) ---------------------------------------------------------
+    // ---- On-phone slicer ---------------------------------------------------------
 
-    /** CuraEngine slicer; created the first time the Slicer is used (Beta only). */
-    val slicer: SlicerEngine? by lazy { if (BuildConfig.BETA) SlicerEngine(getApplication()) else null }
+    /** CuraEngine slicer; created the first time the Slicer is used. */
+    val slicer: SlicerEngine? by lazy { SlicerEngine(getApplication()) }
     private val _sliceSettings = MutableStateFlow(SliceSettings())
     val sliceSettings: StateFlow<SliceSettings> = _sliceSettings.asStateFlow()
     fun setSliceSettings(s: SliceSettings) { _sliceSettings.value = s }

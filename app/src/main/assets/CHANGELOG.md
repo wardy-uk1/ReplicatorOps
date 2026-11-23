@@ -4,6 +4,15 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.0.0
+- New Slicer tab: slice STL and 3MF files (MakerWorld, Printables…) right on the phone, offline, with CuraEngine, the engine inside Ultimaker Cura. Then send them straight to the printer
+- 3MF projects keep their plates, objects and settings from OrcaSlicer, QIDI Studio or Bambu Studio: layer height, walls, infill, supports, temperatures, speeds, seam and ironing
+- Adjust filament, temperatures, layer height, walls, infill pattern, seam, ironing, supports (normal or organic tree) and brim before slicing, with a 3D viewscreen you can turn and zoom
+- Sliced files use QIDI's own Q2C start and end routine, and show print time, filament, a preview and the current layer on the printer's screen
+- "Pattern requires slicing" now offers Slice it here
+- Files uploaded from the app show their size and details straight away
+- Needs a 64-bit phone for slicing (nearly every phone from the last few years)
+
 ## 1.1.0-beta.8 · Stardate 202623.11
 - New slicing engine: CuraEngine (the engine inside Ultimaker Cura) now runs natively on the phone in place of Kiri:Moto. It's much faster (seconds rather than minutes) and doesn't run short of memory on big models
 - New settings: seam position, ironing for smooth tops, organic tree supports, and Cura's infill patterns including lightning

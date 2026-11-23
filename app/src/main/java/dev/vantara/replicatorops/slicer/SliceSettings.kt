@@ -224,7 +224,7 @@ private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: I
         "M400",
     )
     return listOf(
-        "; Sliced on the phone by Replicator Ops Beta (CuraEngine) for QIDI Q2C",
+        "; Sliced on the phone by Replicator Ops (CuraEngine) for QIDI Q2C",
         "PRINT_START BED=$bedTemp HOTEND=$temp EXTRUDER=0",
         TOTAL_LAYER_MARKER,
         "M83",

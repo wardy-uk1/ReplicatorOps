@@ -39,38 +39,35 @@ jobs:
             echo "channel=stable" >> "$GITHUB_OUTPUT"; echo "flavor=Stable" >> "$GITHUB_OUTPUT"; echo "branch=main" >> "$GITHUB_OUTPUT"
           fi
 
-      # ---- Beta: build the CuraEngine slicer (AGPL-3.0, Ultimaker) for the phone and for CI --
-      - name: Cache CuraEngine build (beta)
-        if: steps.ver.outputs.channel == 'beta'
+      # ---- The CuraEngine slicer (AGPL-3.0, Ultimaker), built for the phone and for CI -------
+      - name: Cache CuraEngine build
         uses: actions/cache@v4
         with:
           path: native/curaengine/work
           key: curaengine-${{ hashFiles('native/curaengine/build.sh', 'native/curaengine/StandardProjectSettings.cmake') }}
 
-      - name: Build CuraEngine (beta)
-        if: steps.ver.outputs.channel == 'beta'
+      - name: Build CuraEngine
         run: |
           sudo apt-get install -y ninja-build >/dev/null
           native/curaengine/build.sh host
           native/curaengine/build.sh android "$ANDROID_NDK_LATEST_HOME"
           w=native/curaengine/work
-          mkdir -p app/src/beta/jniLibs/arm64-v8a app/src/beta/assets/cura app/src/beta/assets/licenses
-          cp $w/out-android/CuraEngine app/src/beta/jniLibs/arm64-v8a/libcuraengine.so
-          python3 native/curaengine/tools/compile_defs.py $w/out-host/definitions app/src/beta/assets/cura/settings.json
-          cp $w/CuraEngine/LICENSE app/src/beta/assets/licenses/CuraEngine-LICENSE.txt
-          cp $w/Cura/LICENSE app/src/beta/assets/licenses/Cura-definitions-LICENSE.txt
-          file app/src/beta/jniLibs/arm64-v8a/libcuraengine.so
+          mkdir -p app/src/main/jniLibs/arm64-v8a app/src/main/assets/cura app/src/main/assets/licenses
+          cp $w/out-android/CuraEngine app/src/main/jniLibs/arm64-v8a/libcuraengine.so
+          python3 native/curaengine/tools/compile_defs.py $w/out-host/definitions app/src/main/assets/cura/settings.json
+          cp $w/CuraEngine/LICENSE app/src/main/assets/licenses/CuraEngine-LICENSE.txt
+          cp $w/Cura/LICENSE app/src/main/assets/licenses/Cura-definitions-LICENSE.txt
+          file app/src/main/jniLibs/arm64-v8a/libcuraengine.so
           echo "CURA_ENGINE=$GITHUB_WORKSPACE/$w/out-host/CuraEngine" >> "$GITHUB_ENV"
-          echo "CURA_SETTINGS=$GITHUB_WORKSPACE/app/src/beta/assets/cura/settings.json" >> "$GITHUB_ENV"
+          echo "CURA_SETTINGS=$GITHUB_WORKSPACE/app/src/main/assets/cura/settings.json" >> "$GITHUB_ENV"
 
       # Slice test models with the app's own settings code and CuraEngine (built for this
       # machine), and check the app works out Cura's settings exactly as Cura's formulas do.
-      - name: Slicer self-test (beta)
-        if: steps.ver.outputs.channel == 'beta'
+      - name: Slicer self-test
         run: |
           chmod +x gradlew
-          ./gradlew testBetaDebugUnitTest --tests '*Slic*' --console=plain -i | grep -E "layers=|PASSED|FAILED|SKIPPED" || true
-          ./gradlew testBetaDebugUnitTest --tests '*Slic*' --console=plain
+          ./gradlew test${{ steps.ver.outputs.flavor }}DebugUnitTest --tests '*Slic*' --console=plain -i | grep -E "layers=|PASSED|FAILED|SKIPPED" || true
+          ./gradlew test${{ steps.ver.outputs.flavor }}DebugUnitTest --tests '*Slic*' --console=plain
           ls app/build/cura-check | head
           python3 native/curaengine/tools/compare.py native/curaengine/work/out-host/definitions app/build/cura-check
 

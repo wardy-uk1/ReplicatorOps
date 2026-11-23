@@ -25,8 +25,8 @@ android {
         applicationId = "dev.vantara.replicatorops"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1108
-        versionName = "1.1.0-beta.8"
+        versionCode = 2000
+        versionName = "2.0.0"
     }
 
     // Two editions: the normal app, and a Beta that installs alongside it with the

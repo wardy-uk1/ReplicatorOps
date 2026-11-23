@@ -4,7 +4,7 @@
 
 An open-source, LCARS-styled Android app for controlling QIDI (and other Klipper/Moonraker) 3D printers. It's a clean-room alternative to QIDI Maker: it talks straight to the printer's **Moonraker** API over your LAN or Tailscale, with no account or cloud needed.
 
-> The Beta includes CuraEngine and Cura's printer definitions by Ultimaker B.V., used under the GNU Affero General Public License v3.0 and LGPL-3.0; their source is linked above and the exact versions are pinned in `native/curaengine/build.sh`.
+> The app includes CuraEngine and Cura's printer definitions by Ultimaker B.V., used under the GNU Affero General Public License v3.0 and LGPL-3.0; their source is linked above and the exact versions are pinned in `native/curaengine/build.sh`.
 
 Not affiliated with QIDI Tech, Ultimaker or Paramount. "LCARS" styling is an original fan interpretation.
 
@@ -27,6 +27,7 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 - **Filament bay (QIDI Box):** four slots with colour, type and grams left, plus the Box temperature and humidity. **Edit slot** sets each slot's type and colour, or links it to a spool. Load, Unload, Eject and Read tag buttons
 - **Replicator stores** (from Control): your spool list with search, add/edit/delete, colour, type, brand, weight, Box slot and "in use". Grams come off automatically when a print ends
 - **Files:** thumbnail grid, details, start print, delete. **Load pattern** uploads sliced files (also via Share → Replicator Ops); **Retrieve pattern** saves a printer file to the phone
+- **Slicer:** slice STL and 3MF files on the phone with CuraEngine (plates and settings from OrcaSlicer / QIDI Studio / Bambu Studio 3MFs, 3D viewscreen, seam, ironing, organic tree supports), then send to the printer. "Slice it here" from Load pattern
 - **Mission log** (from Files): print history from Moonraker with Day/Week/Month/Year/All, success rate, print time, filament by type and recent prints
 - **Config:** 24th/25th Century styles, chirps, address/API key, diagnostics, plus raw QIDI Box data
 - **Red Alert:** a background link to the printer (Config > Red Alert). Notifies you when a print finishes, fails, is cancelled or pauses (for example filament runout), and keeps a live "Replicating 42% · 51m left" notification with Pause/Resume buttons. Starts again after a reboot or an update. For the most reliable alerts, set the app's battery use to Unrestricted (there's a button for it)
@@ -94,9 +95,9 @@ app/src/main/java/dev/vantara/replicatorops/
 docs/qidi-maker-inspection.md   Notes from inspecting QIDI Maker 1.1.3
 ```
 
-## Beta: on-phone slicer
+## On-phone slicer
 
-The `beta` branch builds **Replicator Ops Beta**, a separate app with a Slicer screen that slices STL and 3MF files on the phone with [CuraEngine](https://github.com/Ultimaker/CuraEngine) (Ultimaker, AGPL-3.0) and sends the G-code to the printer.
+The Slicer screen slices STL and 3MF files on the phone with [CuraEngine](https://github.com/Ultimaker/CuraEngine) (Ultimaker, AGPL-3.0) and sends the G-code to the printer. The `beta` branch builds **Replicator Ops Beta**, a separate app for trying new features first.
 
 - `native/curaengine/build.sh` builds CuraEngine without Conan, for Android (arm64, packaged as `libcuraengine.so`) and for the CI machine.
 - `native/curaengine/tools/compile_defs.py` turns Cura's setting definitions into the app's settings table; the app evaluates Cura's setting formulas itself (`CuraSettings.kt`). CI checks the results match Cura's formulas run in Python (`resolve.py`) and slices test models with the app's settings.
@@ -109,6 +110,6 @@ Slicing station (OrcaSlicer on a home server), quick settings tile, Wear OS.
 
 Replicator Ops is free software under the [GNU General Public License v3.0](LICENSE). You can use, study, change and share it; anything you distribute that is based on it must also be released under GPL-3.0 with its source code.
 
-The Beta includes CuraEngine and Cura's printer definitions by Ultimaker B.V., used under the GNU Affero General Public License v3.0 and LGPL-3.0; their source is linked above and the exact versions are pinned in `native/curaengine/build.sh`.
+The app includes CuraEngine and Cura's printer definitions by Ultimaker B.V., used under the GNU Affero General Public License v3.0 and LGPL-3.0; their source is linked above and the exact versions are pinned in `native/curaengine/build.sh`.
 
 Not affiliated with QIDI Tech, Ultimaker or Paramount.
