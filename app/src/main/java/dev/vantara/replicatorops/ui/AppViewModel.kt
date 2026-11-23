@@ -1057,7 +1057,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Beam to printer: upload, then open the file's details so it can be replicated. */
-    fun beamPattern() {
+    fun beamPattern(seed: FileMeta? = null) {
         val p = when (val st = _loadState.value) {
             is LoadState.Ready -> st.pattern
             is LoadState.Failed -> st.pattern
@@ -1074,16 +1074,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { loader.upload(ep, p) { pr -> _loadState.value = LoadState.Uploading(p, pr) } }
                 .onSuccess { path ->
                     _loadState.value = LoadState.Idle
+                    val size = p.size  // before the local copy is deleted
                     p.file.delete()
                     Chirp.confirm()
                     say("Pattern stored: $path")
+                    // Show what we already know (e.g. from the on-phone slicer) until the printer has read the file.
+                    seed?.let { m -> _meta.update { it + (path to m) } }
                     refreshFiles()
                     select(Screen.FILES)
-                    _openFile.value = GcodeFile(path, System.currentTimeMillis() / 1000.0, p.size)
-                    // Moonraker reads the file's metadata just after upload; fetch it, then again shortly after.
-                    loadMeta(path, force = true)
-                    delay(2500)
-                    loadMeta(path, force = true)
+                    _openFile.value = GcodeFile(path, System.currentTimeMillis() / 1000.0, size)
+                    // Moonraker reads the file's metadata just after upload; keep asking until it has.
+                    for (wait in listOf(0L, 2500L, 5000L, 10000L)) {
+                        delay(wait)
+                        val fresh = runCatching { client.metadata(path) }.getOrNull() ?: continue
+                        if (fresh.estimatedSeconds != null || fresh.thumbnailUrl != null || seed == null) {
+                            _meta.update { it + (path to fresh) }
+                            if (fresh.estimatedSeconds != null && fresh.thumbnailUrl != null) break
+                        }
+                    }
                 }
                 .onFailure { e ->
                     _loadState.value = LoadState.Failed("Transport failed: ${e.message ?: "upload error"}", p)
@@ -1170,7 +1178,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val done = slicer?.state?.value as? SliceState.Done ?: return
         val copy = File(getApplication<Application>().cacheDir, done.gcode.name).also { done.gcode.copyTo(it, overwrite = true) }
         _loadState.value = LoadState.Ready(IncomingPattern(copy.name, copy, PatternKind.SLICED))
-        beamPattern()
+        val s = sliceSettings.value
+        beamPattern(
+            FileMeta(
+                thumbnailUrl = done.thumbnail?.let { "file://" + it.absolutePath },
+                estimatedSeconds = done.seconds.takeIf { it > 0 },
+                filamentMm = done.filamentMm.takeIf { it > 0 },
+                filamentGrams = null,
+                layerHeight = s.layerHeight,
+                objectHeight = done.plate.size.third.toDouble(),
+                slicer = "Kiri:Moto (Replicator Ops)",
+                filamentTypes = listOf(s.filament),
+            )
+        )
     }
 
     fun dismissLoad() {

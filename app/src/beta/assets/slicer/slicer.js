@@ -242,25 +242,29 @@ layout();
 status('Awaiting pattern');
 A.onReady();
 
-// Self-test (CI): ?selftest=1 slices a 20 mm cube with default Q2C-like settings.
+// Self-test (CI): ?selftest=1 slices a 20 mm cube; ?selftest=2 slices an overhanging
+// "T" with tree supports (the case that used to stall), each on a fresh page as in the app.
 if (location.search.includes('selftest')) {
     (async () => {
+        const second = location.search.includes('selftest=2');
         const tri = [];
-        const v = (x, y, z) => [x * 20, y * 20, z * 20];
-        const quad = (a, b, c, d) => { tri.push(...a, ...b, ...c, ...a, ...c, ...d); };
-        const p = [v(0,0,0), v(1,0,0), v(1,1,0), v(0,1,0), v(0,0,1), v(1,0,1), v(1,1,1), v(0,1,1)];
-        quad(p[0], p[3], p[2], p[1]); quad(p[4], p[5], p[6], p[7]); quad(p[0], p[1], p[5], p[4]);
-        quad(p[1], p[2], p[6], p[5]); quad(p[2], p[3], p[7], p[6]); quad(p[3], p[0], p[4], p[7]);
+        const box = (x0, y0, z0, x1, y1, z1) => {
+            const p = [[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
+            const quad = (a, b, c, d) => tri.push(...p[a], ...p[b], ...p[c], ...p[a], ...p[c], ...p[d]);
+            quad(0, 3, 2, 1); quad(4, 5, 6, 7); quad(0, 1, 5, 4); quad(1, 2, 6, 5); quad(2, 3, 7, 6); quad(3, 0, 4, 7);
+        };
+        if (second) { box(-5, -5, 0, 5, 5, 30); box(-30, -5, 30, 30, 5, 36); } else { box(0, 0, 0, 20, 20, 20); }
         const count = tri.length / 9;
         const buf = new ArrayBuffer(84 + count * 50);
         const dv = new DataView(buf);
         dv.setUint32(80, count, true);
         for (let t = 0; t < count; t++) for (let k = 0; k < 9; k++) dv.setFloat32(84 + t * 50 + 12 + k * 4, tri[t * 9 + k], true);
-        const blob = URL.createObjectURL(new Blob([buf]));
-        await loadModel(blob);
+        await loadModel(URL.createObjectURL(new Blob([buf])));
         const cfg = await (await fetch('/slicer/selftest.json')).json();
+        if (second) Object.assign(cfg.process, { sliceSupportType: 'automatic', sliceSupportTree: true });
+        const started = Date.now();
         await slice(JSON.stringify(cfg));
         window.__selftest = { done: window.__done, error: window.__error, bytes: (window.__gcode || []).join('').length,
-            head: (window.__gcode || [''])[0].substring(0, 5000) };
+            ms: Date.now() - started, head: (window.__gcode || [''])[0].substring(0, 5000) };
     })();
 }

@@ -34,6 +34,8 @@ sealed interface SliceState {
     data class Done(
         val model: ModelFile, val plate: Plate, val gcode: File,
         val layers: Int, val seconds: Double, val filamentMm: Double,
+        /** 300 px PNG of the model, for the Files screen until the printer has read the file. */
+        val thumbnail: File? = null,
     ) : SliceState
     data class Failed(val message: String, val model: ModelFile?, val plate: Plate?) : SliceState
 }
@@ -55,6 +57,9 @@ class SlicerEngine(context: Context) {
 
     private var ready = false
     private var pendingLoad: Pair<ModelFile, Plate>? = null
+    /** Each slice runs on a freshly loaded page: Kiri's workers don't always reset between jobs. */
+    private var pageUsed = false
+    private var pendingSlice: String? = null
     private var out: Writer? = null
     private var outFile: File? = null
 
@@ -105,12 +110,31 @@ class SlicerEngine(context: Context) {
             put("device", settings.kiriDevice())
             put("process", settings.kiriProcess())
         }.toString()
+        if (pageUsed || !ready) {
+            // Fresh engine: reload the page, reload the model, then slice (see onModel).
+            pendingSlice = cfg
+            if (pageUsed) { pageUsed = false; reloadPage() }
+        } else {
+            startSlice(cfg)
+        }
+    }
+
+    private fun startSlice(cfg: String) {
+        pageUsed = true
         js("slicer.slice(${JsonPrimitive(cfg)})")
     }
 
+    private fun reloadPage() {
+        ready = false
+        main.post { webView.reload() }
+    }
+
     fun cancel() {
-        js("slicer.cancel()")
+        pendingSlice = null
         closeOut()
+        // Reloading stops Kiri's workers straight away.
+        reloadPage()
+        pageUsed = false
         val (model, plate) = currentModel() ?: return
         _state.value = SliceState.Ready(model, plate)
     }
@@ -153,7 +177,13 @@ class SlicerEngine(context: Context) {
 
         @JavascriptInterface fun onModel(info: String) {
             val p = pendingLoad ?: return
-            _state.value = SliceState.Ready(p.first, p.second)
+            val waiting = pendingSlice
+            if (waiting != null) {
+                pendingSlice = null
+                main.post { startSlice(waiting) }
+                return
+            }
+            if (_state.value !is SliceState.Slicing) _state.value = SliceState.Ready(p.first, p.second)
         }
 
         @JavascriptInterface fun onProgress(stage: String, percent: Int) {
@@ -191,8 +221,15 @@ class SlicerEngine(context: Context) {
             raw.delete()
             val target = File(work, raw.name)
             final.renameTo(target)
+            val png = thumb?.let { b64 ->
+                runCatching {
+                    File(work, target.nameWithoutExtension + "-thumb.png").also {
+                        it.writeBytes(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))
+                    }
+                }.getOrNull()
+            }
             _state.value = SliceState.Done(
-                model, plate, target,
+                model, plate, target, thumbnail = png,
                 layers = (info?.get("layers") as? JsonPrimitive)?.intOrNull ?: 0,
                 seconds = (info?.get("seconds") as? JsonPrimitive)?.doubleOrNull ?: 0.0,
                 filamentMm = (info?.get("filamentMm") as? JsonPrimitive)?.doubleOrNull ?: 0.0,
