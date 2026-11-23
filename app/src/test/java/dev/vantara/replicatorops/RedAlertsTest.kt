@@ -48,5 +48,6 @@ class RedAlertsTest {
         assertEquals("Cube #2", prettyObjectName("Cube_id_0_copy_1"))
         assertEquals("Mood Ghost #1", prettyObjectName("Mood_Ghost.stl_id_3_copy_0"))
         assertEquals("part a", prettyObjectName("part_a"))
+        assertEquals("Pilbox set Friday step 1 #1", prettyObjectName("Pilbox_set_Friday_step.step_1_id_0_copy_0"))
     }
 }

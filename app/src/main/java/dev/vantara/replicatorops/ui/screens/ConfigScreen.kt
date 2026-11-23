@@ -44,6 +44,7 @@ fun ConfigScreen(vm: AppViewModel) {
     val chirps by vm.chirps.collectAsState()
     var host by remember { mutableStateOf(vm.prefs.host) }
     var apiKey by remember { mutableStateOf(vm.prefs.apiKey) }
+    var showRaw by remember { mutableStateOf(false) }
     var confirmRestart by remember { mutableStateOf<String?>(null) }
     val field = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text)
 
@@ -121,8 +122,17 @@ fun ConfigScreen(vm: AppViewModel) {
         if (p.boxRaw.isNotEmpty()) {
             LcarsSectionHeader("QIDI Box raw data", color = s.nav[3])
             LcarsLabel("Send me a screenshot of this if the Box screen looks wrong.", color = s.hint, size = 12.sp, maxLines = 2)
-            p.boxRaw.forEach { (k, v) ->
-                Text("$k = $v", color = s.text, fontSize = 12.sp, fontFamily = LcarsFont)
+            Spacer(Modifier.height(6.dp))
+            LcarsButton(
+                if (showRaw) "Hide raw data ▲" else "Show raw data (${p.boxRaw.size}) ▼",
+                color = s.nav[3],
+                height = 38.dp,
+            ) { showRaw = !showRaw }
+            if (showRaw) {
+                Spacer(Modifier.height(6.dp))
+                p.boxRaw.forEach { (k, v) ->
+                    Text("$k = $v", color = s.text, fontSize = 12.sp, fontFamily = LcarsFont)
+                }
             }
         }
 

@@ -24,6 +24,8 @@ import dev.vantara.replicatorops.BuildConfig
 import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
+import dev.vantara.replicatorops.data.GcodeOutlines
+import dev.vantara.replicatorops.data.Outline
 import dev.vantara.replicatorops.alert.RedAlertService
 import dev.vantara.replicatorops.ui.lcars.Chirp
 import dev.vantara.replicatorops.ui.lcars.LcarsStyle
@@ -89,6 +91,14 @@ sealed interface LoadState {
     data class Unsupported(val name: String) : LoadState
     data class Uploading(val pattern: IncomingPattern, val progress: Float) : LoadState
     data class Failed(val message: String, val pattern: IncomingPattern?) : LoadState
+}
+
+/** Target lock outlines read from the print file. */
+sealed interface OutlineState {
+    data object Idle : OutlineState
+    data class Loading(val file: String) : OutlineState
+    data class Ready(val file: String, val shapes: Map<String, Outline>) : OutlineState
+    data class Failed(val file: String, val message: String) : OutlineState
 }
 
 /** Retrieve pattern (download from printer) state. */
@@ -328,8 +338,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Target lock (exclude object) -----------------------------------------
 
-    fun excludeObject(name: String) =
-        gcode("EXCLUDE_OBJECT NAME=$name", "Target ${prettyObjectName(name)} neutralised")
+    /** Cancel several objects at once. */
+    fun excludeObjects(names: Collection<String>) {
+        if (names.isEmpty()) return
+        val text = if (names.size == 1) "Target ${prettyObjectName(names.first())} neutralised" else "${names.size} targets neutralised"
+        gcode(names.joinToString("\n") { "EXCLUDE_OBJECT NAME=$it" }, text)
+    }
+
+    private val _outlines = MutableStateFlow<OutlineState>(OutlineState.Idle)
+    /** First-layer shapes of the objects in the current print, for the Target lock map. */
+    val outlines: StateFlow<OutlineState> = _outlines.asStateFlow()
+
+    fun loadOutlines() {
+        val file = printer.value.filename ?: return
+        val ep = client.endpoint ?: return
+        val now = _outlines.value
+        if ((now is OutlineState.Ready && now.file == file) || (now is OutlineState.Loading && now.file == file)) return
+        _outlines.value = OutlineState.Loading(file)
+        viewModelScope.launch {
+            _outlines.value = runCatching { GcodeOutlines.fetch(http, ep, file) }
+                .fold({ OutlineState.Ready(file, it) }, { OutlineState.Failed(file, it.message ?: "Couldn't read the print file") })
+        }
+    }
 
     // ---- Ship systems ------------------------------------------------------------
 
@@ -758,9 +788,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 }
 
-/** "Cube_id_0_copy_1" -> "Cube #2"; other names just lose underscores. */
+/** "Cube_id_0_copy_1" -> "Cube #2"; model file extensions and underscores are dropped. */
 fun prettyObjectName(name: String): String {
-    val m = Regex("^(.*?)(?:\\.stl|\\.3mf|\\.obj)?_id_\\d+_copy_(\\d+)$", RegexOption.IGNORE_CASE).find(name)
-    return if (m != null) "${m.groupValues[1].replace('_', ' ')} #${m.groupValues[2].toInt() + 1}"
-    else name.replace('_', ' ')
+    val m = Regex("^(.*?)_id_\\d+_copy_(\\d+)$", RegexOption.IGNORE_CASE).find(name)
+    val base = m?.groupValues?.get(1) ?: name
+    val clean = base.replace(Regex("\\.(stl|3mf|obj|step|stp)(?=$|[_ ])", RegexOption.IGNORE_CASE), "").replace('_', ' ').trim()
+    return if (m != null) "$clean #${m.groupValues[2].toInt() + 1}" else clean
 }
