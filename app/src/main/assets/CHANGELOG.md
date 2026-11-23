@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.6.1
+## 0.6.1 · Stardate 202623.11
 - Sensor sweep now finds printers on your Wi-Fi even while a VPN (Tailscale, Proton) is running on the phone
 - Home screen widget: the 30-minute refresh now asks the printer instead of showing an old status
 - Each menu item has its own colour (Timelapse and Config no longer repeat Status and Control)
