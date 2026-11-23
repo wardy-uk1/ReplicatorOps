@@ -102,6 +102,8 @@ fun SystemsScreen(vm: AppViewModel) {
             color = s.hint, size = 12.sp, maxLines = 3,
         )
 
+        BedMeshSection(vm)
+
         Subroutines(vm)
         Spacer(Modifier.height(24.dp))
     }
@@ -194,5 +196,32 @@ private fun MacroRow(name: String, description: String?, starred: Boolean, enabl
         }
         Spacer(Modifier.width(6.dp))
         LcarsButton("Run", color = s.nav[3], height = 34.dp, enabled = enabled) { onRun() }
+    }
+}
+
+/** Bed mesh: 3D map of the bed's levelling, plus a button to measure it again. */
+@Composable
+private fun BedMeshSection(vm: AppViewModel) {
+    val s = LocalLcars.current
+    val p by vm.printer.collectAsState()
+    var confirm by remember { mutableStateOf(false) }
+    LcarsSectionHeader("Bed mesh", color = s.nav[0])
+    val mesh = p.bedMesh
+    if (mesh == null) {
+        LcarsLabel("No bed mesh loaded. Calibrate to measure the bed.", color = s.hint, size = 14.sp, maxLines = 2)
+    } else {
+        BedMeshView(mesh, Modifier.fillMaxWidth())
+    }
+    Spacer(Modifier.height(8.dp))
+    LcarsButton("Calibrate bed mesh", color = s.nav[0], height = 38.dp, enabled = p.ready && !p.isBusy) { confirm = true }
+    if (confirm) {
+        LcarsConfirm(
+            title = "Calibrate bed mesh?",
+            text = "The printer homes and probes the whole bed. This takes a few minutes; heat the bed first for the most accurate result.",
+            confirmLabel = "Calibrate",
+            color = s.nav[0],
+            onConfirm = { confirm = false; vm.calibrateMesh() },
+            onDismiss = { confirm = false },
+        )
     }
 }

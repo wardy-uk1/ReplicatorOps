@@ -21,6 +21,7 @@ import dev.vantara.replicatorops.R
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.PrinterState
 import dev.vantara.replicatorops.data.Prefs
+import dev.vantara.replicatorops.data.ReplicationQueue
 import dev.vantara.replicatorops.widget.ReplicatorWidget
 import dev.vantara.replicatorops.ui.screens.cameraSnapshot
 import dev.vantara.replicatorops.widget.WidgetData
@@ -47,6 +48,7 @@ class RedAlertService : Service() {
         .build()
     private val client = MoonrakerClient(scope, http)
     private var host = ""
+    private val queue by lazy { ReplicationQueue.get(this) }
     private var lastWatch: Watch? = null
     private var watching = false
 
@@ -69,6 +71,7 @@ class RedAlertService : Service() {
         when (intent?.action) {
             ACTION_PAUSE -> { scope.launch { runCatching { client.call("printer.print.pause") } }; return START_STICKY }
             ACTION_RESUME -> { scope.launch { runCatching { client.call("printer.print.resume") } }; return START_STICKY }
+            ACTION_NEXT -> { scope.launch { startNext() }; return START_STICKY }
         }
         if (client.endpoint != ep) {
             host = ep.host
@@ -81,7 +84,15 @@ class RedAlertService : Service() {
                 var prev: PrinterState? = null
                 var layerShotTaken = false
                 client.state.collect { now ->
-                    RedAlerts.transition(prev, now)?.let(::postAlert)
+                    RedAlerts.transition(prev, now)?.let { alert ->
+                        val next = queue.items.value.firstOrNull()
+                        if (now.printState == "complete" && next != null) {
+                            val label = next.substringAfterLast('/').substringBeforeLast('.')
+                            postAlert(alert.copy(text = "${alert.text}. Clear the build plate, then tap Next to start $label."), withNext = true)
+                        } else {
+                            postAlert(alert)
+                        }
+                    }
                     // First-layer watch: one camera snapshot per print as layer 2 begins.
                     if (now.ready && !now.isBusy) layerShotTaken = false
                     if (!layerShotTaken && RedAlerts.secondLayerStarted(now) && Prefs(this@RedAlertService).firstLayerWatch) {
@@ -146,7 +157,21 @@ class RedAlertService : Service() {
             }
             .build()
 
-    private fun postAlert(a: Alert) {
+    /** Replication queue: start the next file (from the notification's Next button). */
+    private suspend fun startNext() {
+        NotificationManagerCompat.from(this).cancel(ALERT_ID)
+        val next = queue.pop() ?: return
+        runCatching {
+            client.call("printer.print.start", kotlinx.serialization.json.buildJsonObject {
+                put("filename", kotlinx.serialization.json.JsonPrimitive(next))
+            })
+        }.onFailure {
+            queue.pushFront(next)
+            postAlert(Alert("Red Alert: couldn't start the next print", it.message ?: "The printer refused the job", severe = true))
+        }
+    }
+
+    private fun postAlert(a: Alert, withNext: Boolean = false) {
         if (!canNotify()) return
         val n = NotificationCompat.Builder(this, if (a.severe) CHANNEL_RED else CHANNEL_DONE)
             .setSmallIcon(R.drawable.ic_stat_replicator)
@@ -158,6 +183,7 @@ class RedAlertService : Service() {
             .setPriority(if (a.severe) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(if (a.severe) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_STATUS)
             .setColor(if (a.severe) 0xFFDD4444.toInt() else 0xFFFFCC66.toInt())
+            .apply { if (withNext) addAction(0, "Next", selfAction(ACTION_NEXT, 4)) }
             .build()
         NotificationManagerCompat.from(this).notify(ALERT_ID, n)
     }
@@ -202,6 +228,7 @@ class RedAlertService : Service() {
         private const val ALERT_ID = 1702
         private const val ACTION_PAUSE = "dev.vantara.replicatorops.PAUSE"
         private const val ACTION_RESUME = "dev.vantara.replicatorops.RESUME"
+        private const val ACTION_NEXT = "dev.vantara.replicatorops.NEXT"
 
         fun createChannels(context: Context) {
             val nm = context.getSystemService(NotificationManager::class.java) ?: return

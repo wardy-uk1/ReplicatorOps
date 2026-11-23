@@ -88,6 +88,8 @@ data class PrinterState(
     val bedMin: Pair<Double, Double>? = null,
     val bedMax: Pair<Double, Double>? = null,
     val systems: ShipSystems = ShipSystems(),
+    /** Active bed mesh, or null if none is loaded. */
+    val bedMesh: BedMesh? = null,
     /** Klipper gcode_macro names, minus hidden ones starting with "_". */
     val macros: List<String> = emptyList(),
 ) {
@@ -144,3 +146,15 @@ data class TimelapseFile(
 
 /** Webcam addresses: a still image and the live MJPEG stream. */
 data class Webcam(val snapshot: String, val stream: String)
+
+/** Klipper bed_mesh: heights (mm) in rows from front (min Y) to back, columns left to right. */
+data class BedMesh(
+    val profile: String,
+    val min: Pair<Double, Double>,
+    val max: Pair<Double, Double>,
+    val heights: List<List<Double>>,
+) {
+    val lowest: Double get() = heights.flatten().minOrNull() ?: 0.0
+    val highest: Double get() = heights.flatten().maxOrNull() ?: 0.0
+    val range: Double get() = highest - lowest
+}

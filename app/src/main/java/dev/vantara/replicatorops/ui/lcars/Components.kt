@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -130,6 +131,8 @@ fun LcarsFrame(
     selected: Int,
     onSelect: (Int) -> Unit,
     footer: @Composable () -> Unit,
+    onTitleClick: (() -> Unit)? = null,
+    titleAction: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val s = LocalLcars.current
@@ -147,8 +150,16 @@ fun LcarsFrame(
         Row(Modifier.fillMaxWidth().height(topHeight)) {
             LcarsElbow(Modifier.weight(1f).fillMaxHeight(), s.frame, s.barHeight, flip = false)
             Spacer(Modifier.width(8.dp))
-            Box(Modifier.height(maxOf(s.barHeight, 30.dp)), contentAlignment = Alignment.CenterStart) {
+            Box(
+                Modifier.widthIn(max = 250.dp).height(maxOf(s.barHeight, 30.dp))
+                    .then(if (onTitleClick != null) Modifier.clickable { Chirp.tap(); onTitleClick() } else Modifier),
+                contentAlignment = Alignment.CenterStart,
+            ) {
                 LcarsLabel(title, color = s.frame, size = titleSize, bold = true)
+            }
+            if (titleAction != null) {
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.height(maxOf(s.barHeight, 30.dp)), contentAlignment = Alignment.Center) { titleAction() }
             }
             Spacer(Modifier.width(8.dp))
             EndCap(s.frame, s.barHeight)

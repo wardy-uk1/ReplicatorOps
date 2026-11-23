@@ -1,5 +1,30 @@
 package dev.vantara.replicatorops
 
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import dev.vantara.replicatorops.ui.SHORTCUT_PAUSE
+import dev.vantara.replicatorops.ui.SHORTCUT_STATUS
+import dev.vantara.replicatorops.ui.SHORTCUT_VOICE
+import dev.vantara.replicatorops.ui.lcars.Chirp
+import dev.vantara.replicatorops.ui.lcars.LcarsButton
+import dev.vantara.replicatorops.ui.lcars.LcarsConfirm
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -76,6 +101,9 @@ class MainActivity : ComponentActivity() {
 
     /** Share → Replicator Ops, or "Open with", hands us a file to Load pattern. */
     private fun handleIncoming(intent: Intent?) {
+        when (val a = intent?.action) {
+            SHORTCUT_STATUS, SHORTCUT_VOICE, SHORTCUT_PAUSE -> { vm.shortcut(a); return }
+        }
         val uri: Uri? = when (intent?.action) {
             Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
             Intent.ACTION_VIEW -> intent.data
@@ -109,12 +137,35 @@ private fun App(vm: AppViewModel) {
         }
     }
 
+    val fleet by vm.fleet.collectAsState()
+    val active by vm.activePrinter.collectAsState()
+    var picking by remember { mutableStateOf(false) }
+
+    // "Computer," voice commands: Android's speech recogniser, then the command parser.
+    val listen = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val heard = r.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (heard != null) vm.onVoice(heard)
+    }
+    fun startListening() {
+        Chirp.confirm()
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Computer: awaiting command")
+        runCatching { listen.launch(intent) }.onFailure {
+            Toast.makeText(context, "No speech recogniser on this phone", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val voiceRequest by vm.voiceRequest.collectAsState()
+    LaunchedEffect(voiceRequest) { if (voiceRequest) { vm.voiceRequestHandled(); startListening() } }
+
     LcarsFrame(
-        title = "Replicator Ops",
+        title = if (fleet.size > 1) active?.name ?: "Replicator Ops" else "Replicator Ops",
         nav = nav,
         selected = screens.indexOf(screen.parent),
         onSelect = { vm.select(screens[it]) },
         footer = { Chronometer(stateLabel(p), now) },
+        onTitleClick = { picking = true },
+        titleAction = { Combadge { startListening() } },
     ) {
         when (screen) {
             Screen.STATUS -> StatusScreen(vm)
@@ -129,6 +180,17 @@ private fun App(vm: AppViewModel) {
     }
 
     CaptainsLogDialog(vm)
+    if (picking) FleetPicker(vm) { picking = false }
+    val confirmAbort by vm.confirmAbort.collectAsState()
+    if (confirmAbort) {
+        LcarsConfirm(
+            title = "Abort replication?",
+            text = "Voice command received. This cancels the current print and it can't be resumed.",
+            confirmLabel = "Abort",
+            onConfirm = { vm.dismissAbort(); vm.cancel() },
+            onDismiss = { vm.dismissAbort() },
+        )
+    }
     AskForNotificationsOnce(vm)
     UplinkAlert(vm)
     LoadPatternDialog(vm)
@@ -157,4 +219,58 @@ private fun Chronometer(state: String, now: LocalDateTime) {
         Spacer(Modifier.width(7.dp))
         LcarsLabel("${computerTime(now)} hours", color = s.frame, size = 13.sp)
     }
+}
+
+/** Combadge button in the title bar: tap, then speak a command. */
+@Composable
+private fun Combadge(onClick: () -> Unit) {
+    val s = LocalLcars.current
+    Canvas(
+        Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onClick)
+    ) {
+        val w = size.width
+        val h = size.height
+        // Oval backing plate and a delta, in the frame colours.
+        drawOval(s.frame, topLeft = Offset(0f, h * 0.3f), size = Size(w, h * 0.45f))
+        val delta = Path().apply {
+            moveTo(w * 0.5f, h * 0.05f)
+            lineTo(w * 0.78f, h * 0.95f)
+            lineTo(w * 0.5f, h * 0.72f)
+            lineTo(w * 0.22f, h * 0.95f)
+            close()
+        }
+        drawPath(delta, s.accent)
+        drawPath(delta, Color.Black, style = Stroke(width = 2f))
+    }
+}
+
+/** Fleet registry picker (tap the title bar). */
+@Composable
+private fun FleetPicker(vm: AppViewModel, onDismiss: () -> Unit) {
+    val s = LocalLcars.current
+    val fleet by vm.fleet.collectAsState()
+    val active by vm.activePrinter.collectAsState()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.Black,
+        modifier = Modifier.border(2.dp, s.nav[2], RoundedCornerShape(24.dp)),
+        title = { LcarsLabel("Fleet registry", color = s.nav[2], size = 20.sp, bold = true) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (fleet.isEmpty()) LcarsLabel("No printers registered yet. Add one in Config.", color = s.hint, size = 14.sp, maxLines = 2)
+                fleet.forEach { pr ->
+                    val isActive = pr.id == active?.id
+                    LcarsButton(
+                        if (isActive) "${pr.name} · active" else pr.name,
+                        color = if (isActive) s.accent else s.nav[2],
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { if (!isActive) vm.switchPrinter(pr.id); onDismiss() }
+                }
+            }
+        },
+        confirmButton = {
+            LcarsButton("Manage", color = s.nav[2]) { vm.select(Screen.CONFIG); onDismiss() }
+        },
+        dismissButton = { LcarsButton("Close", color = s.frameAlt) { onDismiss() } },
+    )
 }

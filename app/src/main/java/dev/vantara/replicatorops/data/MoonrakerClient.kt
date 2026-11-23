@@ -350,12 +350,28 @@ class MoonrakerClient(
             bedMin = xy(th?.get("axis_minimum")),
             bedMax = xy(th?.get("axis_maximum")),
             systems = parseSystems(o),
+            bedMesh = parseMesh(o["bed_mesh"]),
         )
     }
 
     private fun xy(el: JsonElement?): Pair<Double, Double>? {
         val a = (el as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.doubleOrNull } ?: return null
         return if (a.size >= 2) a[0] to a[1] else null
+    }
+
+    private fun parseMesh(m: JsonObject?): BedMesh? {
+        m ?: return null
+        fun matrix(key: String) = (m[key] as? JsonArray).orEmpty().mapNotNull { row ->
+            (row as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.doubleOrNull }?.takeIf { it.isNotEmpty() }
+        }
+        // probed_matrix is what was measured; mesh_matrix is the smoothed version Klipper uses.
+        val heights = matrix("mesh_matrix").takeIf { it.size >= 2 } ?: matrix("probed_matrix").takeIf { it.size >= 2 } ?: return null
+        return BedMesh(
+            profile = m.s("profile_name")?.takeIf { it.isNotBlank() } ?: "default",
+            min = xy(m["mesh_min"]) ?: (0.0 to 0.0),
+            max = xy(m["mesh_max"]) ?: (1.0 to 1.0),
+            heights = heights,
+        )
     }
 
     private fun parseObjects(eo: JsonObject?): List<PrintObject> =
@@ -601,7 +617,7 @@ class MoonrakerClient(
         private val FILAMENT_CODE = Regex("^Q?[A-Z]{1,3}\\d{2,}$")
         val BASE_OBJECTS = setOf(
             "print_stats", "display_status", "virtual_sdcard", "extruder", "heater_bed",
-            "fan", "gcode_move", "toolhead", "webhooks", "idle_timeout", "exclude_object",
+            "fan", "gcode_move", "toolhead", "webhooks", "idle_timeout", "exclude_object", "bed_mesh",
         )
     }
 }

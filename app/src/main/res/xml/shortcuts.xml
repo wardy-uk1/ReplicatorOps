@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon, or ask Google Assistant to open these by name. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="status_report"
+        android:shortcutLongLabel="@string/shortcut_status_long"
+        android:shortcutShortLabel="@string/shortcut_status">
+        <intent
+            android:action="dev.vantara.replicatorops.STATUS_REPORT"
+            android:targetClass="dev.vantara.replicatorops.MainActivity"
+            android:targetPackage="dev.vantara.replicatorops" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="computer"
+        android:shortcutLongLabel="@string/shortcut_voice_long"
+        android:shortcutShortLabel="@string/shortcut_voice">
+        <intent
+            android:action="dev.vantara.replicatorops.VOICE"
+            android:targetClass="dev.vantara.replicatorops.MainActivity"
+            android:targetPackage="dev.vantara.replicatorops" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="pause_replication"
+        android:shortcutLongLabel="@string/shortcut_pause_long"
+        android:shortcutShortLabel="@string/shortcut_pause">
+        <intent
+            android:action="dev.vantara.replicatorops.PAUSE_REPLICATION"
+            android:targetClass="dev.vantara.replicatorops.MainActivity"
+            android:targetPackage="dev.vantara.replicatorops" />
+    </shortcut>
+</shortcuts>

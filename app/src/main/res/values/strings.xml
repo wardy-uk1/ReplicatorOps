@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Replicator Ops</string>
     <string name="widget_description">Print status, progress and time left</string>
+    <string name="shortcut_status">Status report</string>
+    <string name="shortcut_status_long">Replicator status report</string>
+    <string name="shortcut_voice">Computer</string>
+    <string name="shortcut_voice_long">Computer: voice command</string>
+    <string name="shortcut_pause">Pause</string>
+    <string name="shortcut_pause_long">Pause replication</string>
 </resources>

@@ -19,6 +19,8 @@ data class Spool(
     val remainingGrams: Double,
     /** QIDI Box slot 0-3 this spool is loaded in, or null. */
     val slot: Int? = null,
+    /** What the spool cost, in the phone's currency, or null if not entered. */
+    val price: Double? = null,
 ) {
     val percent: Int get() = if (totalGrams <= 0) 0 else ((remainingGrams / totalGrams) * 100).toInt().coerceIn(0, 100)
 }
@@ -46,6 +48,11 @@ class StoresRepo(context: Context) {
 
     fun saveSlots(map: Map<Int, SlotInfo>) = sp.edit().putString("slots", json.encodeToString(map)).apply()
 
+    /** Filament price used for print costs when no spool of that type has a price. */
+    var defaultPricePerKg: Double
+        get() = sp.getString("price_per_kg", null)?.toDoubleOrNull() ?: 20.0
+        set(v) = sp.edit().putString("price_per_kg", v.toString()).apply()
+
     var activeSpoolId: Long?
         get() = sp.getLong("active_spool", -1L).takeIf { it >= 0 }
         set(v) = sp.edit().putLong("active_spool", v ?: -1L).apply()
@@ -69,6 +76,27 @@ class StoresRepo(context: Context) {
             material.contains("PA", true) -> 1.14
             else -> 1.24 // PLA
         }
+
+        /**
+         * Cost of one gram of [material]: the average price per gram of priced spools of
+         * that type, otherwise [defaultPerKg] / 1000.
+         */
+        fun costPerGram(material: String?, spools: List<Spool>, defaultPerKg: Double): Double {
+            val m = material?.trim().orEmpty()
+            val priced = spools.filter { it.price != null && it.price > 0 && it.totalGrams > 0 }
+            val same = if (m.isEmpty()) emptyList() else priced.filter { sameMaterial(it.material, m) }
+            return if (same.isNotEmpty()) same.map { it.price!! / it.totalGrams }.average() else defaultPerKg / 1000.0
+        }
+
+        /** "Silk PLA" matches "PLA Silk"; "PLA" doesn't match "PLA+". */
+        private fun sameMaterial(a: String, b: String): Boolean {
+            fun words(x: String) = x.uppercase().split(' ', '-', '_').filter { it.isNotBlank() }.toSet()
+            return words(a) == words(b)
+        }
+
+        /** Filament cost of a print. */
+        fun printCost(filamentMm: Double, material: String?, spools: List<Spool>, defaultPerKg: Double): Double =
+            gramsFor(filamentMm, material ?: "PLA") * costPerGram(material, spools, defaultPerKg)
 
         /** Grams for a length of 1.75 mm filament. */
         fun gramsFor(mm: Double, material: String): Double {

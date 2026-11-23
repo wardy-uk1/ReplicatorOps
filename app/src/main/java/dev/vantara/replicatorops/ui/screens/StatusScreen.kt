@@ -31,6 +31,7 @@ import coil.compose.AsyncImage
 import dev.vantara.replicatorops.data.PrinterState
 import dev.vantara.replicatorops.ui.AppViewModel
 import dev.vantara.replicatorops.ui.lcars.LcarsButton
+import dev.vantara.replicatorops.ui.lcars.LcarsBracketPanel
 import dev.vantara.replicatorops.ui.lcars.LcarsConfirm
 import dev.vantara.replicatorops.ui.lcars.LcarsLabel
 import dev.vantara.replicatorops.ui.lcars.LcarsProgress
@@ -47,6 +48,7 @@ fun StatusScreen(vm: AppViewModel) {
     var confirmCancel by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
     var showTargets by remember { mutableStateOf(false) }
+    var confirmNext by remember { mutableStateOf(false) }
 
     val nozzle = p.heaters.firstOrNull { it.objectName == "extruder" }
     val bed = p.heaters.firstOrNull { it.objectName == "heater_bed" }
@@ -138,6 +140,16 @@ fun StatusScreen(vm: AppViewModel) {
             }
             LcarsButton("Camera", color = s.nav[1], height = 38.dp, enabled = p.online) { showCamera = true }
         }
+        val queue by vm.queue.collectAsState()
+        if (!p.isBusy && p.ready && queue.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            LcarsBracketPanel(color = s.nav[2]) {
+                LcarsLabel("Next in queue · ${queue.size} waiting", color = s.nav[2], size = 13.sp)
+                LcarsLabel(queue.first().substringAfterLast('/').substringBeforeLast('.'), color = s.accent, size = 16.sp)
+                Spacer(Modifier.height(4.dp))
+                LcarsButton("Plate clear · engage next", color = s.accent, height = 36.dp) { confirmNext = true }
+            }
+        }
         if (p.isBusy && p.objects.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             LcarsButton("Target lock", color = s.nav[3], height = 38.dp) { showTargets = true }
@@ -156,6 +168,16 @@ fun StatusScreen(vm: AppViewModel) {
     if (showCamera) CameraDialog(vm) { showCamera = false }
 
     if (showTargets) TargetLockDialog(vm) { showTargets = false }
+    if (confirmNext) {
+        LcarsConfirm(
+            title = "Build plate clear?",
+            text = "Start the next file in the replication queue now. Make sure the plate is empty.",
+            confirmLabel = "Engage",
+            color = s.accent,
+            onConfirm = { confirmNext = false; vm.startNextInQueue() },
+            onDismiss = { confirmNext = false },
+        )
+    }
 
     if (confirmCancel) {
         LcarsConfirm(

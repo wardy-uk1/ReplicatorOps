@@ -1,5 +1,10 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.graphics.Color
+import dev.vantara.replicatorops.data.PrinterProfile
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,8 +48,13 @@ fun ConfigScreen(vm: AppViewModel) {
     val s = LocalLcars.current
     val p by vm.printer.collectAsState()
     val chirps by vm.chirps.collectAsState()
-    var host by remember { mutableStateOf(vm.prefs.host) }
-    var apiKey by remember { mutableStateOf(vm.prefs.apiKey) }
+    val active by vm.activePrinter.collectAsState()
+    val fleet by vm.fleet.collectAsState()
+    var host by remember(active?.id) { mutableStateOf(active?.host.orEmpty()) }
+    var apiKey by remember(active?.id) { mutableStateOf(active?.apiKey.orEmpty()) }
+    var addingPrinter by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<PrinterProfile?>(null) }
+    var removing by remember { mutableStateOf<PrinterProfile?>(null) }
     var showRaw by remember { mutableStateOf(false) }
     var confirmRestart by remember { mutableStateOf<String?>(null) }
     val field = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text)
@@ -84,14 +94,34 @@ fun ConfigScreen(vm: AppViewModel) {
                 if (f.needsKey) LcarsLabel("Needs an API key", color = s.hint, size = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LcarsButton("Lock on", color = s.accent, height = 36.dp) {
-                        host = f.address
-                        vm.connect(f.address, apiKey)
+                        vm.addPrinter(f.name, f.address, "")
                     }
                 }
             }
         }
 
-        LcarsSectionHeader("Subspace link", color = s.nav[1])
+        LcarsSectionHeader("Fleet registry", color = s.nav[2])
+        if (fleet.isEmpty()) {
+            LcarsLabel("No printers yet. Use Sensor sweep, or type an address below and Engage.", color = s.hint, size = 13.sp, maxLines = 3)
+        }
+        fleet.forEach { pr ->
+            val isActive = pr.id == active?.id
+            LcarsBracketPanel(color = if (isActive) s.accent else s.nav[2]) {
+                LcarsReadout(pr.name, if (isActive) "Active" else "", valueColor = s.accent)
+                LcarsLabel(pr.host, color = s.accent2, size = 13.sp)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (!isActive) LcarsButton("Switch", color = s.accent, height = 34.dp) { vm.switchPrinter(pr.id) }
+                    LcarsButton("Rename", color = s.nav[2], height = 34.dp) { renaming = pr }
+                    LcarsButton("Remove", color = s.alert, height = 34.dp) { removing = pr }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        LcarsButton("Add printer", color = s.nav[2]) { addingPrinter = true }
+        LcarsLabel("Tip: tap the title bar to switch printers from any screen.", color = s.hint, size = 12.sp, maxLines = 2)
+
+        LcarsSectionHeader("Subspace link${active?.let { " · " + it.name } ?: ""}", color = s.nav[1])
         OutlinedTextField(
             value = host,
             onValueChange = { host = it },
@@ -177,6 +207,18 @@ fun ConfigScreen(vm: AppViewModel) {
         Spacer(Modifier.height(24.dp))
     }
 
+    if (addingPrinter) PrinterDialog(null, onSave = { n, h, k -> vm.addPrinter(n, h, k); addingPrinter = false }) { addingPrinter = false }
+    renaming?.let { pr -> PrinterDialog(pr, onSave = { n, _, _ -> vm.renamePrinter(pr.id, n); renaming = null }) { renaming = null } }
+    removing?.let { pr ->
+        LcarsConfirm(
+            title = "Remove ${pr.name}?",
+            text = "${pr.host} will be removed from the fleet registry. Nothing on the printer changes.",
+            confirmLabel = "Remove",
+            onConfirm = { vm.removePrinter(pr.id); removing = null },
+            onDismiss = { removing = null },
+        )
+    }
+
     confirmRestart?.let { kind ->
         LcarsConfirm(
             title = "Restart during a print?",
@@ -189,4 +231,48 @@ fun ConfigScreen(vm: AppViewModel) {
             onDismiss = { confirmRestart = null },
         )
     }
+}
+
+/** Add a printer (name, address, key) or rename one ([existing] set: only the name is editable). */
+@Composable
+private fun PrinterDialog(existing: PrinterProfile?, onSave: (String, String, String) -> Unit, onDismiss: () -> Unit) {
+    val s = LocalLcars.current
+    var name by remember { mutableStateOf(existing?.name.orEmpty()) }
+    var host by remember { mutableStateOf(existing?.host.orEmpty()) }
+    var key by remember { mutableStateOf("") }
+    val field = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.Black,
+        modifier = Modifier.border(2.dp, s.nav[2], RoundedCornerShape(24.dp)),
+        title = { LcarsLabel(if (existing == null) "Register printer" else "Rename printer", color = s.nav[2], size = 20.sp, bold = true) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it }, singleLine = true, textStyle = field,
+                    label = { LcarsLabel("Name (e.g. Q2C workshop)", color = s.accent2, size = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (existing == null) {
+                    OutlinedTextField(
+                        value = host, onValueChange = { host = it }, singleLine = true, textStyle = field,
+                        label = { LcarsLabel("Address", color = s.accent2, size = 12.sp) },
+                        placeholder = { LcarsLabel("192.168.1.50, name.ts.net or IPv6", color = s.hint) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = key, onValueChange = { key = it }, singleLine = true, textStyle = field,
+                        label = { LcarsLabel("API key (optional)", color = s.accent2, size = 12.sp) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            LcarsButton("Save", color = s.nav[2], enabled = existing != null || host.isNotBlank()) { onSave(name, host, key) }
+        },
+        dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { onDismiss() } },
+    )
 }

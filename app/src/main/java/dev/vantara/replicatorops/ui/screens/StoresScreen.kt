@@ -185,6 +185,7 @@ private fun SpoolDialog(
     var total by remember { mutableStateOf((spool?.totalGrams ?: 1000).toString()) }
     var remaining by remember { mutableStateOf((spool?.remainingGrams?.toInt() ?: 1000).toString()) }
     var slot by remember { mutableStateOf(spool?.slot) }
+    var price by remember { mutableStateOf(spool?.price?.let { "%.2f".format(it) } ?: "") }
     var inUse by remember { mutableStateOf(isActive) }
     var confirmDelete by remember { mutableStateOf(false) }
     val field = TextStyle(fontFamily = LcarsFont, fontSize = 17.sp, color = s.text)
@@ -224,6 +225,13 @@ private fun SpoolDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f),
                     )
                 }
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { v -> price = v.filter { it.isDigit() || it == '.' || it == ',' }.take(8) },
+                    singleLine = true, textStyle = field,
+                    label = { LcarsLabel("Price paid (for print costs)", color = s.accent2, size = 12.sp) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.height(10.dp))
                 LcarsLabel("QIDI Box slot", color = s.accent2, size = 14.sp)
                 Spacer(Modifier.height(6.dp))
@@ -256,6 +264,7 @@ private fun SpoolDialog(
                         totalGrams = totalG,
                         remainingGrams = left,
                         slot = slot,
+                        price = price.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 },
                     ),
                     inUse,
                 )

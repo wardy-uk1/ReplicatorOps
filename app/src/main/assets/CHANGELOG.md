@@ -4,6 +4,15 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.7.0
+- Replication queue: Add to queue from any pattern's details, then reorder or remove in Files > Queue. When a print finishes, Red Alert says "clear the build plate" with a Next button, or tap Engage next on the Status screen
+- Bed mesh: a 3D map of your bed's levelling on Ship systems (drag to turn and tilt), with variance and a Calibrate button
+- Fleet registry: save several printers in Config, then tap the title bar on any screen to switch. Sensor sweep's Lock on adds the printer to the fleet
+- Print costs: filament cost per print, in total and per print in the Mission log. Uses each spool's price (new Price field in Replicator stores) or a price per kg you set
+- "Computer," voice commands: tap the combadge in the title bar and say "status report", "time remaining", "temperatures", "pause", "resume", "lights on" and more. Replies are spoken
+- Launcher shortcuts (long-press the app icon): Status report, Computer and Pause
+- New LCARS-style font (Antonio) throughout the app
+
 ## 0.6.1 · Stardate 202623.11
 - Sensor sweep now finds printers on your Wi-Fi even while a VPN (Tailscale, Proton) is running on the phone
 - Home screen widget: the 30-minute refresh now asks the printer instead of showing an old status

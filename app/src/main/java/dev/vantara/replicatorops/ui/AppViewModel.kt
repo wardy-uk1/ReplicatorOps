@@ -24,6 +24,12 @@ import dev.vantara.replicatorops.BuildConfig
 import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
+import dev.vantara.replicatorops.data.PrinterProfile
+import dev.vantara.replicatorops.data.ReplicationQueue
+import android.speech.tts.TextToSpeech
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
 import dev.vantara.replicatorops.data.GcodeOutlines
 import dev.vantara.replicatorops.data.FoundPrinter
 import dev.vantara.replicatorops.data.SensorSweep
@@ -127,6 +133,10 @@ sealed interface RetrieveState {
     data class Failed(val name: String, val message: String) : RetrieveState
 }
 
+const val SHORTCUT_STATUS = "dev.vantara.replicatorops.STATUS_REPORT"
+const val SHORTCUT_VOICE = "dev.vantara.replicatorops.VOICE"
+const val SHORTCUT_PAUSE = "dev.vantara.replicatorops.PAUSE_REPLICATION"
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val prefs = Prefs(app)
@@ -156,6 +166,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _chirps = MutableStateFlow(prefs.chirps)
     val chirps: StateFlow<Boolean> = _chirps.asStateFlow()
+
+    /** Replication queue for the active printer. */
+    val queueStore = ReplicationQueue.get(app)
+    val queue: StateFlow<List<String>> = queueStore.items
+
+    private val _fleet = MutableStateFlow(prefs.printers)
+    /** Fleet registry: every saved printer. */
+    val fleet: StateFlow<List<PrinterProfile>> = _fleet.asStateFlow()
+    private val _activePrinter = MutableStateFlow(prefs.activePrinter)
+    val activePrinter: StateFlow<PrinterProfile?> = _activePrinter.asStateFlow()
+
+    private fun refreshFleet() {
+        _fleet.value = prefs.printers
+        _activePrinter.value = prefs.activePrinter
+    }
 
     private val _redAlert = MutableStateFlow(prefs.redAlert)
     val redAlert: StateFlow<Boolean> = _redAlert.asStateFlow()
@@ -196,6 +221,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _slotInfo = MutableStateFlow(stores.loadSlots())
     /** User-set material/colour per Box slot (0-3). */
     val slotInfo: StateFlow<Map<Int, SlotInfo>> = _slotInfo.asStateFlow()
+
+    private val _pricePerKg = MutableStateFlow(stores.defaultPricePerKg)
+    /** Default filament price per kg for print costs. */
+    val pricePerKg: StateFlow<Double> = _pricePerKg.asStateFlow()
+
+    fun setPricePerKg(v: Double) {
+        val clean = v.coerceIn(0.0, 10_000.0)
+        stores.defaultPricePerKg = clean
+        _pricePerKg.value = clean
+    }
 
     private val _logPeriod = MutableStateFlow(LogPeriod.ALL)
     val logPeriod: StateFlow<LogPeriod> = _logPeriod.asStateFlow()
@@ -373,10 +408,91 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         prefs.host = host.trim()
         prefs.apiKey = apiKey.trim()
-        metaRequested.clear()
-        _meta.value = emptyMap()
+        refreshFleet()
+        resetPrinterData()
         client.connect(ep)
         RedAlertService.sync(getApplication())
+    }
+
+    // ---- Fleet registry ---------------------------------------------------------
+
+    /** Forget everything that belonged to the previous printer. */
+    private fun resetPrinterData() {
+        metaRequested.clear()
+        _meta.value = emptyMap()
+        _files.value = emptyList()
+        _history.value = emptyList()
+        _reels.value = emptyList()
+        _reelsError.value = null
+        _webcam.value = null
+        _temps.value = emptyList()
+        _outlines.value = OutlineState.Idle
+        queueStore.reload()
+    }
+
+    // ---- Replication queue --------------------------------------------------------
+
+    fun addToQueue(path: String) {
+        queueStore.add(path)
+        Chirp.confirm()
+        say("${path.substringAfterLast('/')} added to the replication queue (${queueStore.items.value.size})")
+    }
+
+    fun removeFromQueue(index: Int) = queueStore.removeAt(index)
+    fun moveInQueue(index: Int, by: Int) = queueStore.move(index, by)
+    fun clearQueue() = queueStore.clear()
+
+    /** Starts the next queued file. Call once the build plate is clear. */
+    fun startNextInQueue() {
+        if (printer.value.isBusy) { Chirp.deny(); say("Replicator is busy"); return }
+        val next = queueStore.pop() ?: run { say("The replication queue is empty"); return }
+        viewModelScope.launch {
+            runCatching { client.call("printer.print.start", buildJsonObject { put("filename", next) }) }
+                .onSuccess { Chirp.confirm(); say("Replicating ${next.substringAfterLast('/')}") }
+                .onFailure { e -> queueStore.pushFront(next); Chirp.deny(); say(e.message ?: "Couldn't start the next print") }
+        }
+    }
+
+    fun switchPrinter(id: Long) {
+        val target = prefs.printers.firstOrNull { it.id == id } ?: return
+        val ep = Endpoint.parse(target.host, target.apiKey)
+        if (ep == null) { Chirp.deny(); say("${target.name} has an invalid address"); return }
+        prefs.activeId = id
+        refreshFleet()
+        resetPrinterData()
+        client.connect(ep)
+        RedAlertService.sync(getApplication())
+        Chirp.confirm()
+        say("Now commanding ${target.name}")
+    }
+
+    /** Adds a printer to the fleet and switches to it (or switches if the address is already there). */
+    fun addPrinter(name: String, host: String, apiKey: String) {
+        val h = host.trim()
+        if (Endpoint.parse(h, apiKey) == null) {
+            Chirp.deny()
+            say(Endpoint.problem(h) ?: "That doesn't look like a valid address")
+            return
+        }
+        val existing = prefs.printers.firstOrNull { it.host.equals(h, ignoreCase = true) }
+        val p = existing ?: prefs.savePrinter(PrinterProfile(System.currentTimeMillis(), name.trim().ifBlank { h }, h, apiKey.trim()))
+        switchPrinter(p.id)
+    }
+
+    fun renamePrinter(id: Long, name: String) {
+        val p = prefs.printers.firstOrNull { it.id == id } ?: return
+        prefs.savePrinter(p.copy(name = name.trim().ifBlank { p.host }))
+        refreshFleet()
+    }
+
+    fun removePrinter(id: Long) {
+        val wasActive = prefs.activePrinter?.id == id
+        prefs.removePrinter(id)
+        refreshFleet()
+        if (wasActive) {
+            val next = prefs.activePrinter
+            if (next != null) switchPrinter(next.id) else { client.disconnect(); resetPrinterData(); RedAlertService.sync(getApplication()) }
+        }
     }
 
     // ---- Subroutines (macros) ------------------------------------------------------
@@ -386,6 +502,85 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _favMacros.value = now
         prefs.favouriteMacros = now
     }
+
+    // ---- "Computer," voice commands -------------------------------------------------
+
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
+    private val _confirmAbort = MutableStateFlow(false)
+    /** True when a voice "abort" is waiting for the on-screen confirmation. */
+    val confirmAbort: StateFlow<Boolean> = _confirmAbort.asStateFlow()
+    fun dismissAbort() { _confirmAbort.value = false }
+
+    /** Speaks a reply (and shows it), in British English where available. */
+    fun speak(text: String) {
+        say(text)
+        val engine = tts
+        if (engine != null && ttsReady) {
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "replicator")
+            return
+        }
+        pendingSpeech = text
+        if (engine == null) {
+            tts = TextToSpeech(getApplication()) { status ->
+                ttsReady = status == TextToSpeech.SUCCESS
+                if (ttsReady) {
+                    tts?.language = Locale.UK
+                    pendingSpeech?.let { tts?.speak(it, TextToSpeech.QUEUE_FLUSH, null, "replicator") }
+                }
+                pendingSpeech = null
+            }
+        }
+    }
+
+    /** Handles what the speech recogniser heard. */
+    fun onVoice(heard: String) {
+        val p = printer.value
+        when (Voice.parse(heard)) {
+            VoiceCommand.STATUS -> speak(Voice.statusReport(p))
+            VoiceCommand.TEMPERATURES -> speak(Voice.temperatures(p).ifEmpty { "Temperature sensors unavailable." })
+            VoiceCommand.TIME_LEFT -> speak(Voice.timeLeft(p))
+            VoiceCommand.PAUSE -> if (p.isPrinting) { pause(); speak("Pausing replication.") } else speak("No replication to pause.")
+            VoiceCommand.RESUME -> if (p.isPaused) { resume(); speak("Resuming replication.") } else speak("Replication is not paused.")
+            VoiceCommand.ABORT -> if (p.isBusy) { _confirmAbort.value = true; speak("Confirm abort on screen.") } else speak("No replication in progress.")
+            VoiceCommand.LIGHTS_ON -> { setCaseLight(true); speak("Lights up.") }
+            VoiceCommand.LIGHTS_OFF -> { setCaseLight(false); speak("Lights down.") }
+            VoiceCommand.COOL_DOWN -> { coolDown(); speak("Heaters offline.") }
+            VoiceCommand.HOME -> if (p.isBusy) speak("Unable to comply during replication.") else { home(); speak("Homing all axes.") }
+            VoiceCommand.NEXT_IN_QUEUE -> if (queue.value.isEmpty()) speak("The replication queue is empty.")
+                else speak("Check the build plate is clear, then tap Engage next on the Status screen.")
+            VoiceCommand.UNKNOWN -> { Chirp.deny(); speak("Unable to comply. Try status report, pause or time remaining.") }
+        }
+    }
+
+    private val _voiceRequest = MutableStateFlow(false)
+    /** Set by the "Computer" shortcut: the UI should open the speech recogniser. */
+    val voiceRequest: StateFlow<Boolean> = _voiceRequest.asStateFlow()
+    fun requestVoice() { _voiceRequest.value = true }
+    fun voiceRequestHandled() { _voiceRequest.value = false }
+
+    /** Launcher shortcuts arrive before the printer link is up; wait for it (up to 10 s). */
+    fun shortcut(action: String) {
+        viewModelScope.launch {
+            when (action) {
+                SHORTCUT_VOICE -> requestVoice()
+                SHORTCUT_STATUS, SHORTCUT_PAUSE -> {
+                    select(Screen.STATUS)
+                    withTimeoutOrNull(10_000) { printer.first { it.ready } }
+                    if (action == SHORTCUT_STATUS) speak(Voice.statusReport(printer.value))
+                    else onVoice("pause")
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        tts?.shutdown()
+        super.onCleared()
+    }
+
+    fun calibrateMesh() = gcode("G28\nBED_MESH_CALIBRATE", "Bed mesh calibration started")
 
     fun runMacro(name: String) = gcode(name, "Subroutine $name engaged")
 

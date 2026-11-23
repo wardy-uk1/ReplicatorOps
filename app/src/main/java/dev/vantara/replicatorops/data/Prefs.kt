@@ -1,17 +1,71 @@
 package dev.vantara.replicatorops.data
 
 import android.content.Context
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+/** One printer in the Fleet registry. */
+@Serializable
+data class PrinterProfile(
+    val id: Long,
+    val name: String,
+    val host: String,
+    val apiKey: String = "",
+)
 
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("replicatorops", Context.MODE_PRIVATE)
+    private val json = Json { ignoreUnknownKeys = true }
 
+    // ---- Fleet registry --------------------------------------------------------
+    // Older versions kept one printer in "host"/"api_key"; it becomes the first entry.
+
+    var printers: List<PrinterProfile>
+        get() {
+            val stored = sp.getString("printers", null)
+                ?.let { runCatching { json.decodeFromString<List<PrinterProfile>>(it) }.getOrNull() }
+            if (stored != null) return stored
+            val legacy = sp.getString("host", "").orEmpty()
+            if (legacy.isBlank()) return emptyList()
+            val first = PrinterProfile(1L, legacy, legacy, sp.getString("api_key", "").orEmpty())
+            sp.edit().putString("printers", json.encodeToString(listOf(first))).putLong("active_printer", 1L).apply()
+            return listOf(first)
+        }
+        set(v) = sp.edit().putString("printers", json.encodeToString(v)).apply()
+
+    var activeId: Long
+        get() = sp.getLong("active_printer", printers.firstOrNull()?.id ?: 0L)
+        set(v) = sp.edit().putLong("active_printer", v).apply()
+
+    val activePrinter: PrinterProfile?
+        get() = printers.let { list -> list.firstOrNull { it.id == activeId } ?: list.firstOrNull() }
+
+    /** Saves a printer (new or edited) and returns it. */
+    fun savePrinter(p: PrinterProfile): PrinterProfile {
+        val list = printers
+        printers = if (list.any { it.id == p.id }) list.map { if (it.id == p.id) p else it } else list + p
+        return p
+    }
+
+    fun removePrinter(id: Long) {
+        printers = printers.filterNot { it.id == id }
+        if (activeId == id) activeId = printers.firstOrNull()?.id ?: 0L
+    }
+
+    /** Address of the active printer. Setting it edits the active printer (or creates one). */
     var host: String
-        get() = sp.getString("host", "") ?: ""
-        set(v) = sp.edit().putString("host", v).apply()
+        get() = activePrinter?.host.orEmpty()
+        set(v) = updateActive { it.copy(host = v, name = if (it.name.isBlank() || it.name == it.host) v else it.name) }
 
     var apiKey: String
-        get() = sp.getString("api_key", "") ?: ""
-        set(v) = sp.edit().putString("api_key", v).apply()
+        get() = activePrinter?.apiKey.orEmpty()
+        set(v) = updateActive { it.copy(apiKey = v) }
+
+    private fun updateActive(change: (PrinterProfile) -> PrinterProfile) {
+        val current = activePrinter ?: PrinterProfile(System.currentTimeMillis(), "", "").also { activeId = it.id }
+        savePrinter(change(current))
+    }
 
     /** "24" (TNG/Voyager) or "25" (Picard). */
     var style: String

@@ -36,6 +36,12 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 - **Live camera:** MJPEG stream with full screen and pinch to zoom; snapshot polling as a fallback
 - **Subroutines:** Klipper macros (from `gcode_macro` objects) with favourites, on Ship systems
 - **First-layer watch:** a notification with a camera snapshot when layer 2 starts (part of Red Alert)
+- **Replication queue:** queue files, then start the next one after clearing the plate (from the app or the Red Alert notification)
+- **Bed mesh:** 3D view of Klipper's `bed_mesh` with variance and a calibrate button
+- **Fleet registry:** several printers; tap the title bar to switch
+- **Print costs:** per-print and total filament cost in the Mission log, from spool prices or a default price per kg
+- **"Computer," voice commands:** combadge button in the title bar, Android speech recognition, spoken replies; launcher shortcuts for Status report, Computer and Pause
+- **Font:** [Antonio](https://fonts.google.com/specimen/Antonio) (SIL Open Font License, bundled in `res/font`, licence in `assets/licenses`)
 - **Captain's Log:** a "what's new" panel shown once after each upgrade, and from Config. It reads [`app/src/main/assets/CHANGELOG.md`](app/src/main/assets/CHANGELOG.md), which is also used for the GitHub release notes
 - **Starbase Uplink:** checks GitHub Releases when the app opens (alert chirp if a newer build exists) or on demand, then downloads it with a progress bar and opens Android's installer
 
@@ -88,7 +94,7 @@ docs/qidi-maker-inspection.md   Notes from inspecting QIDI Maker 1.1.3
 
 ## Ideas for later
 
-Replication queue, bed mesh viewer, multiple printers, an Antonio font in `res/font`.
+Slicing station (OrcaSlicer on a home server), quick settings tile, Wear OS.
 
 ## License
 

@@ -1,6 +1,10 @@
 package dev.vantara.replicatorops.ui.lcars
 
-import android.graphics.Typeface
+import dev.vantara.replicatorops.R
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -95,10 +99,15 @@ val Century25 = LcarsStyle(
 fun styleFor(id: String): LcarsStyle = if (id == "25") Century25 else Century24
 
 /**
- * Condensed system font. To use a closer LCARS face, drop an OFL font such as
- * Antonio into res/font/ and swap this for FontFamily(Font(R.font.antonio_regular)).
+ * Antonio (SIL Open Font License, see assets/licenses/Antonio-OFL.txt): a tall,
+ * condensed face close to the LCARS look. One variable font file covers every weight.
  */
-val LcarsFont: FontFamily = FontFamily(Typeface.create("sans-serif-condensed", Typeface.NORMAL))
+@OptIn(ExperimentalTextApi::class)
+val LcarsFont: FontFamily = FontFamily(
+    Font(R.font.antonio, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+    Font(R.font.antonio, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(R.font.antonio, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+)
 
 val LocalLcars = staticCompositionLocalOf { Century24 }
 

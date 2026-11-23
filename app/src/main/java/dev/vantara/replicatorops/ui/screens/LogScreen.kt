@@ -1,5 +1,15 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
+import dev.vantara.replicatorops.data.StoresRepo
+import dev.vantara.replicatorops.ui.lcars.LcarsFont
+import java.text.NumberFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +62,11 @@ fun LogScreen(vm: AppViewModel) {
     val period by vm.logPeriod.collectAsState()
     val loading by vm.historyLoading.collectAsState()
     var showAll by remember { mutableStateOf(false) }
+    val spools by vm.spools.collectAsState()
+    val perKg by vm.pricePerKg.collectAsState()
+    var editPrice by remember { mutableStateOf(false) }
+    fun cost(j: HistoryJob) = StoresRepo.printCost(j.filamentUsedMm, j.filamentType, spools, perKg)
+    val totalCost = jobs.sumOf { cost(it) }
 
     val finished = jobs.filter { it.status in setOf("completed", "cancelled", "error", "klippy_shutdown", "klippy_disconnect") }
     val completed = finished.count { it.status == "completed" }
@@ -83,6 +98,18 @@ fun LogScreen(vm: AppViewModel) {
             Stat("Print time", formatHours(printTime), Modifier.weight(1f))
             Stat("Filament used", "%.1f m".format(filamentM), Modifier.weight(1f))
         }
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Stat("Filament cost", money(totalCost), Modifier.weight(1f), s.accent)
+            Stat("Per print", if (jobs.isEmpty()) "--" else money(totalCost / jobs.size), Modifier.weight(1f))
+        }
+        Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            LcarsLabel(
+                "Costs use your spool prices, or ${money(perKg)}/kg",
+                color = s.hint, size = 12.sp, modifier = Modifier.weight(1f),
+            )
+            LcarsButton("Set price", color = s.nav[1], height = 32.dp) { editPrice = true }
+        }
 
         if (byType.isNotEmpty()) {
             LcarsSectionHeader("Filament by type", color = s.nav[2])
@@ -102,13 +129,49 @@ fun LogScreen(vm: AppViewModel) {
 
         LcarsSectionHeader("Recent", color = s.frame)
         if (jobs.isEmpty() && !loading) LcarsLabel("No prints in this period", color = s.hint, size = 14.sp)
-        (if (showAll) jobs else jobs.take(8)).forEach { JobRow(it) }
+        (if (showAll) jobs else jobs.take(8)).forEach { JobRow(it, cost(it)) }
         if (jobs.size > 8 && !showAll) {
             Spacer(Modifier.height(10.dp))
             LcarsButton("Full history (${jobs.size})", color = s.nav[1], modifier = Modifier.fillMaxWidth()) { showAll = true }
         }
         Spacer(Modifier.height(24.dp))
     }
+
+    if (editPrice) PriceDialog(perKg, onSave = { vm.setPricePerKg(it); editPrice = false }) { editPrice = false }
+}
+
+/** Money in the phone's currency, e.g. "£1.23". */
+fun money(v: Double): String = NumberFormat.getCurrencyInstance().format(v)
+
+@Composable
+private fun PriceDialog(current: Double, onSave: (Double) -> Unit, onDismiss: () -> Unit) {
+    val s = LocalLcars.current
+    var text by remember { mutableStateOf("%.2f".format(current)) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.Black,
+        modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
+        title = { LcarsLabel("Filament price", color = s.nav[1], size = 20.sp, bold = true) },
+        text = {
+            Column {
+                LcarsLabel("Price per kg, used for any type without a priced spool in Replicator stores.", color = s.hint, size = 13.sp, maxLines = 3)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(8) },
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text),
+                    label = { LcarsLabel("Price per kg", color = s.accent2, size = 12.sp) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            LcarsButton("Save", color = s.nav[1]) { text.replace(',', '.').toDoubleOrNull()?.let(onSave) ?: onDismiss() }
+        },
+        dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { onDismiss() } },
+    )
 }
 
 @Composable
@@ -125,7 +188,7 @@ private fun Stat(label: String, value: String, modifier: Modifier, color: Color 
 }
 
 @Composable
-private fun JobRow(j: HistoryJob) {
+private fun JobRow(j: HistoryJob, cost: Double) {
     val s = LocalLcars.current
     val ok = j.status == "completed"
     val status = when (j.status) {
@@ -140,7 +203,7 @@ private fun JobRow(j: HistoryJob) {
         Column(Modifier.weight(1f)) {
             LcarsLabel(j.filename.substringAfterLast('/').removeSuffix(".gcode"), color = s.text, size = 14.sp)
             LcarsLabel(
-                "$status · ${formatDuration(j.printDuration)} · ${SimpleDateFormat("d MMM", Locale.UK).format(Date((j.startTime * 1000).toLong()))}",
+                "$status · ${formatDuration(j.printDuration)} · ${money(cost)} · ${SimpleDateFormat("d MMM", Locale.UK).format(Date((j.startTime * 1000).toLong()))}",
                 color = s.accent2, size = 12.sp,
             )
         }

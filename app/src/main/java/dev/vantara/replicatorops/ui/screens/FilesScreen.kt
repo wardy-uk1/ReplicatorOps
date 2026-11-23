@@ -63,6 +63,7 @@ fun FilesScreen(vm: AppViewModel) {
     val meta by vm.meta.collectAsState()
     var selectedFile by remember { mutableStateOf<GcodeFile?>(null) }
     var deleting by remember { mutableStateOf<GcodeFile?>(null) }
+    var showQueue by remember { mutableStateOf(false) }
 
     // Load pattern: pick a file on the phone (sharing from other apps arrives the same way).
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -85,7 +86,11 @@ fun FilesScreen(vm: AppViewModel) {
             }
         }
         Spacer(Modifier.height(6.dp))
-        LcarsLabel("${files.size} patterns stored", color = s.accent2, size = 14.sp)
+        val queue by vm.queue.collectAsState()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LcarsLabel("${files.size} patterns stored", color = s.accent2, size = 14.sp, modifier = Modifier.weight(1f))
+            LcarsButton("Queue (${queue.size})", color = s.nav[2], height = 34.dp) { showQueue = true }
+        }
         Spacer(Modifier.height(6.dp))
 
         if (!p.online) {
@@ -121,6 +126,7 @@ fun FilesScreen(vm: AppViewModel) {
             onDismiss = { selectedFile = null },
         )
     }
+    if (showQueue) QueueDialog(vm) { showQueue = false }
     deleting?.let { f ->
         LcarsConfirm(
             title = "Purge pattern?",
@@ -213,7 +219,10 @@ private fun FileDialog(
                 val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { dest ->
                     dest?.let { vm.retrievePattern(file, it) }
                 }
-                LcarsButton("Retrieve pattern", color = s.nav[1], height = 38.dp) { saver.launch(file.name) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LcarsButton("Retrieve pattern", color = s.nav[1], height = 38.dp) { saver.launch(file.name) }
+                    LcarsButton("Add to queue", color = s.nav[2], height = 38.dp) { vm.addToQueue(file.path); onDismiss() }
+                }
                 if (!canPrint) {
                     Spacer(Modifier.height(6.dp))
                     LcarsLabel("Replicator busy or not ready", color = s.alert, size = 14.sp)
