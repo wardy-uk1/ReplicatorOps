@@ -8,6 +8,9 @@ on:
     paths: ['app/src/**', 'app/build.gradle.kts', '.github/workflows/screenshots.yml']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   screenshots:
     runs-on: ubuntu-latest
@@ -28,3 +31,15 @@ jobs:
             app/build/outputs/roborazzi/*.png
             app/build/reports/tests/
           if-no-files-found: warn
+      # Also keep the latest set on the "screenshots" branch, so they can be viewed on GitHub.
+      - name: Publish to the screenshots branch
+        run: |
+          set -e
+          mkdir -p /tmp/shots && cp app/build/outputs/roborazzi/*.png /tmp/shots/
+          cd /tmp/shots
+          git init -q -b screenshots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          { echo "# Screen size checks"; echo; echo "From ${GITHUB_SHA::7}."; echo; for f in *.png; do echo "### ${f%.png}"; echo "<img src=\"$f\" width=\"360\">"; echo; done; } > README.md
+          git add -A && git commit -q -m "Screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots
