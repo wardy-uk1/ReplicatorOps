@@ -242,6 +242,7 @@ class MoonrakerClient(
                 name.startsWith("temperature_fan ") ||
                 name.startsWith("fan_generic ") ||
                 name.startsWith("box") ||
+                name.startsWith("output_pin ") ||
                 name.startsWith("aht20") ||
                 name == "save_variables"
         }
@@ -338,6 +339,45 @@ class MoonrakerClient(
             fans = fans,
             box = box,
             boxRaw = boxRaw,
+            objects = parseObjects(o["exclude_object"]),
+            excludedObjects = (o["exclude_object"]?.get("excluded_objects") as? JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.toSet().orEmpty(),
+            currentObject = o["exclude_object"].s("current_object")?.takeIf { it.isNotBlank() },
+            bedMin = xy(th?.get("axis_minimum")),
+            bedMax = xy(th?.get("axis_maximum")),
+            systems = parseSystems(o),
+        )
+    }
+
+    private fun xy(el: JsonElement?): Pair<Double, Double>? {
+        val a = (el as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.doubleOrNull } ?: return null
+        return if (a.size >= 2) a[0] to a[1] else null
+    }
+
+    private fun parseObjects(eo: JsonObject?): List<PrintObject> =
+        (eo?.get("objects") as? JsonArray).orEmpty().mapNotNull { el ->
+            val obj = el as? JsonObject ?: return@mapNotNull null
+            val name = obj.s("name") ?: return@mapNotNull null
+            val poly = (obj["polygon"] as? JsonArray).orEmpty().mapNotNull { xy(it) }
+            PrintObject(name, xy(obj["center"]), poly)
+        }
+
+    private fun parseSystems(o: Map<String, JsonObject>): ShipSystems {
+        val vars = o["save_variables"]?.get("variables") as? JsonObject
+        fun prim(k: String) = vars?.get(k) as? JsonPrimitive
+        fun bool(k: String): Boolean? = prim(k)?.let { p ->
+            p.booleanOrNull ?: p.intOrNull?.let { it != 0 } ?: p.doubleOrNull?.let { it != 0.0 }
+                ?: p.contentOrNull?.lowercase()?.let { it == "true" || it == "1" }
+        }
+        val boolVars = vars?.filter { (_, v) -> v is JsonPrimitive && !v.isString && v.booleanOrNull != null }?.keys.orEmpty()
+        val light = o.entries.firstOrNull { it.key.equals("output_pin caselight", true) }?.value
+            ?: o.entries.firstOrNull { it.key.startsWith("output_pin ") && "light" in it.key.lowercase() }?.value
+        return ShipSystems(
+            caseLight = light.d("value"),
+            noodleDetection = bool("enable_noodle_detection"),
+            noodleSensitivity = prim("noodle_sensitivity_level")?.contentOrNull?.trim('\'', '"', ' ')?.takeIf { it.isNotBlank() },
+            prePrintCheck = bool("enable_pre_print_model_check"),
+            boolVars = boolVars,
         )
     }
 
@@ -513,7 +553,7 @@ class MoonrakerClient(
         private val SLOT_KEY = Regex("slot_?[0-3]")
         val BASE_OBJECTS = setOf(
             "print_stats", "display_status", "virtual_sdcard", "extruder", "heater_bed",
-            "fan", "gcode_move", "toolhead", "webhooks", "idle_timeout",
+            "fan", "gcode_move", "toolhead", "webhooks", "idle_timeout", "exclude_object",
         )
     }
 }

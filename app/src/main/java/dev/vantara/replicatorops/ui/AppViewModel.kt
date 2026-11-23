@@ -24,6 +24,7 @@ import dev.vantara.replicatorops.BuildConfig
 import java.io.File
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.Prefs
+import dev.vantara.replicatorops.alert.RedAlertService
 import dev.vantara.replicatorops.ui.lcars.Chirp
 import dev.vantara.replicatorops.ui.lcars.LcarsStyle
 import dev.vantara.replicatorops.ui.lcars.styleFor
@@ -49,6 +50,7 @@ import java.util.concurrent.TimeUnit
 enum class Screen(val label: String) {
     STATUS("Status"),
     CONTROL("Control"),
+    SYSTEMS("Systems"),
     FILES("Files"),
     CONFIG("Config"),
     STORES("Stores"),
@@ -62,7 +64,7 @@ enum class Screen(val label: String) {
         }
 }
 
-val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.FILES, Screen.CONFIG)
+val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.CONFIG)
 
 enum class LogPeriod(val label: String, val days: Int?) { DAY("Day", 1), WEEK("Week", 7), MONTH("Month", 30), YEAR("Year", 365), ALL("All", null); }
 
@@ -126,6 +128,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _chirps = MutableStateFlow(prefs.chirps)
     val chirps: StateFlow<Boolean> = _chirps.asStateFlow()
+
+    private val _redAlert = MutableStateFlow(prefs.redAlert)
+    val redAlert: StateFlow<Boolean> = _redAlert.asStateFlow()
 
     private val _screen = MutableStateFlow(if (prefs.host.isBlank()) Screen.CONFIG else Screen.STATUS)
     val screen: StateFlow<Screen> = _screen.asStateFlow()
@@ -201,6 +206,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     init {
         Chirp.enabled = prefs.chirps
         prefs.endpoint()?.let { client.connect(it) }
+        RedAlertService.sync(app)
         if (prefs.lastSeenVersion != appVersion) {
             val pending = CaptainsLog.since(captainsLog, prefs.lastSeenVersion)
                 .ifEmpty { captainsLog.filter { it.version == appVersion } }
@@ -298,7 +304,39 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         metaRequested.clear()
         _meta.value = emptyMap()
         client.connect(ep)
+        RedAlertService.sync(getApplication())
     }
+
+    fun setRedAlert(on: Boolean) {
+        prefs.redAlert = on
+        _redAlert.value = on
+        RedAlertService.sync(getApplication())
+    }
+
+    // ---- Target lock (exclude object) -----------------------------------------
+
+    fun excludeObject(name: String) =
+        gcode("EXCLUDE_OBJECT NAME=$name", "Target ${prettyObjectName(name)} neutralised")
+
+    // ---- Ship systems ------------------------------------------------------------
+
+    fun setCaseLight(on: Boolean) =
+        gcode("SET_PIN PIN=caselight VALUE=${if (on) 1 else 0}", if (on) "Lights up" else "Lights down")
+
+    private fun saveFlag(name: String, on: Boolean, okText: String) {
+        val bools = printer.value.systems.boolVars
+        val value = if (name in bools) (if (on) "True" else "False") else (if (on) "1" else "0")
+        gcode("SAVE_VARIABLE VARIABLE=$name VALUE=$value", okText)
+    }
+
+    fun setNoodleDetection(on: Boolean) =
+        saveFlag("enable_noodle_detection", on, if (on) "Spaghetti detection online" else "Spaghetti detection offline")
+
+    fun setPrePrintCheck(on: Boolean) =
+        saveFlag("enable_pre_print_model_check", on, if (on) "Pre-flight scan online" else "Pre-flight scan offline")
+
+    fun setNoodleSensitivity(level: String) =
+        gcode("SAVE_VARIABLE VARIABLE=noodle_sensitivity_level VALUE=\"'$level'\"", "Sensitivity set to $level")
 
     fun disconnect() = client.disconnect()
 
@@ -692,4 +730,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         const val TEMP_SAMPLES = 900
     }
+}
+
+/** "Cube_id_0_copy_1" -> "Cube #2"; other names just lose underscores. */
+fun prettyObjectName(name: String): String {
+    val m = Regex("^(.*?)(?:\\.stl|\\.3mf|\\.obj)?_id_\\d+_copy_(\\d+)$", RegexOption.IGNORE_CASE).find(name)
+    return if (m != null) "${m.groupValues[1].replace('_', ' ')} #${m.groupValues[2].toInt() + 1}"
+    else name.replace('_', ' ')
 }

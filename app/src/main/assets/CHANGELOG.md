@@ -4,6 +4,13 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.4.0
+- Red Alert: notifications when a print finishes, fails, is cancelled or pauses (filament runout), even with the app closed. Turn it on or off in Config > Red Alert
+- Live progress notification while printing ("Replicating 42% · 51m left") with Pause and Resume buttons
+- Red Alert restarts by itself after a reboot or a Starbase Uplink update
+- Target lock: during a print, tap Target lock on the Status screen to cancel one object on the plate using a bed map or a list. The rest of the plate keeps printing
+- New Ship systems screen in the menu: case light, spaghetti detection and its sensitivity, and the pre-flight foreign-object scan
+
 ## 0.3.8 · Stardate 202623.11
 - Ship's chronometer: the bottom bar now shows the device time as "0811 hours" after the stardate, with a pulsing marker
 - The stardate now rolls over at midnight without restarting the app

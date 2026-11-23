@@ -27,6 +27,9 @@ Design mockups with example data. See [all screens](docs/mockups/png), or open t
 - **Files:** thumbnail grid, details, start print, delete
 - **Mission log** (from Files): print history from Moonraker with Day/Week/Month/Year/All, success rate, print time, filament by type and recent prints
 - **Config:** 24th/25th Century styles, chirps, address/API key, diagnostics, plus raw QIDI Box data
+- **Red Alert:** a background link to the printer (Config > Red Alert). Notifies you when a print finishes, fails, is cancelled or pauses (for example filament runout), and keeps a live "Replicating 42% · 51m left" notification with Pause/Resume buttons. Starts again after a reboot or an update. For the most reliable alerts, set the app's battery use to Unrestricted (there's a button for it)
+- **Target lock** (Status, during a print): cancels one object on a multi-part plate with Klipper's `EXCLUDE_OBJECT`. A top-down bed map shows each object's outline; tap one, or pick it from the list, then Fire. Needs "Label objects" on in the slicer and `[exclude_object]` in Klipper
+- **Ship systems:** the printer's own settings: case light (`SET_PIN PIN=caselight`), spaghetti detection on/off and its sensitivity (`enable_noodle_detection`, `noodle_sensitivity_level`), and the pre-print foreign-object scan (`enable_pre_print_model_check`)
 - **Captain's Log:** a "what's new" panel shown once after each upgrade, and from Config. It reads [`app/src/main/assets/CHANGELOG.md`](app/src/main/assets/CHANGELOG.md), which is also used for the GitHub release notes
 - **Starbase Uplink:** checks GitHub Releases when the app opens (alert chirp if a newer build exists) or on demand, then downloads it with a progress bar and opens Android's installer
 
@@ -76,7 +79,7 @@ docs/qidi-maker-inspection.md   Notes from inspecting QIDI Maker 1.1.3
 
 ## Ideas for later
 
-SSDP printer discovery (QIDI's search target is in the notes), writing slot info back to the printer, case light, timelapse toggle, noodle-detection settings, MJPEG streaming, multiple printers, an Antonio font in `res/font`.
+SSDP printer discovery (QIDI's search target is in the notes), timelapse viewer, replication queue, home screen widget, MJPEG streaming, multiple printers, an Antonio font in `res/font`.
 
 ## License
 

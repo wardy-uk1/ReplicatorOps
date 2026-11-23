@@ -33,6 +33,25 @@ data class BoxState(
     val activeSlot: Int?,
 )
 
+/** One object on the build plate, from Klipper's exclude_object (Target lock). */
+data class PrintObject(
+    val name: String,
+    val center: Pair<Double, Double>?,
+    val polygon: List<Pair<Double, Double>>,
+)
+
+/** Printer settings shown on the Ship systems screen; null = not reported by this printer. */
+data class ShipSystems(
+    /** output_pin caselight value 0..1. */
+    val caseLight: Double? = null,
+    val noodleDetection: Boolean? = null,
+    /** Stored as text, e.g. "low", "medium", "high". */
+    val noodleSensitivity: String? = null,
+    val prePrintCheck: Boolean? = null,
+    /** save_variables entries stored as Python booleans (written back as True/False, else 1/0). */
+    val boolVars: Set<String> = emptySet(),
+)
+
 data class PrinterState(
     val connection: Connection = Connection.DISCONNECTED,
     val connectionError: String? = null,
@@ -61,6 +80,14 @@ data class PrinterState(
     val box: BoxState? = null,
     /** Raw Box-related fields, shown in Config > Diagnostics to help map new firmware. */
     val boxRaw: Map<String, String> = emptyMap(),
+    /** Objects on the plate (exclude_object); empty when the file has no object labels. */
+    val objects: List<PrintObject> = emptyList(),
+    val excludedObjects: Set<String> = emptySet(),
+    val currentObject: String? = null,
+    /** Bed limits (x, y) from toolhead.axis_minimum/maximum. */
+    val bedMin: Pair<Double, Double>? = null,
+    val bedMax: Pair<Double, Double>? = null,
+    val systems: ShipSystems = ShipSystems(),
 ) {
     val online: Boolean get() = connection == Connection.CONNECTED
     val ready: Boolean get() = online && klippy == "ready"

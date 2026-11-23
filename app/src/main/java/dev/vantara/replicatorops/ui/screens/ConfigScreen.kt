@@ -88,6 +88,8 @@ fun ConfigScreen(vm: AppViewModel) {
             LcarsButton("Disconnect", color = s.frameAlt, enabled = p.connection != Connection.DISCONNECTED) { vm.disconnect() }
         }
 
+        RedAlertSection(vm)
+
         LcarsSectionHeader("Diagnostics", color = s.nav[2])
         LcarsReadout(
             "Link",

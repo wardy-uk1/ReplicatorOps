@@ -48,6 +48,7 @@ fun StatusScreen(vm: AppViewModel) {
     val temps by vm.temps.collectAsState()
     var confirmCancel by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
+    var showTargets by remember { mutableStateOf(false) }
 
     val nozzle = p.heaters.firstOrNull { it.objectName == "extruder" }
     val bed = p.heaters.firstOrNull { it.objectName == "heater_bed" }
@@ -139,6 +140,10 @@ fun StatusScreen(vm: AppViewModel) {
             }
             LcarsButton("Camera", color = s.nav[1], height = 38.dp, enabled = p.online) { showCamera = true }
         }
+        if (p.isBusy && p.objects.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            LcarsButton("Target lock", color = s.nav[3], height = 38.dp) { showTargets = true }
+        }
 
         // ---- Thermal log ------------------------------------------------------
         LcarsSectionHeader("Thermal log", color = s.nav[2])
@@ -161,6 +166,8 @@ fun StatusScreen(vm: AppViewModel) {
             confirmButton = { LcarsButton("Close", color = s.frameAlt) { showCamera = false } },
         )
     }
+
+    if (showTargets) TargetLockDialog(vm) { showTargets = false }
 
     if (confirmCancel) {
         LcarsConfirm(
