@@ -22,6 +22,7 @@ import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.PrinterState
 import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.widget.ReplicatorWidget
+import dev.vantara.replicatorops.ui.screens.cameraSnapshot
 import dev.vantara.replicatorops.widget.WidgetData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -78,8 +79,15 @@ class RedAlertService : Service() {
             watching = true
             scope.launch {
                 var prev: PrinterState? = null
+                var layerShotTaken = false
                 client.state.collect { now ->
                     RedAlerts.transition(prev, now)?.let(::postAlert)
+                    // First-layer watch: one camera snapshot per print as layer 2 begins.
+                    if (now.ready && !now.isBusy) layerShotTaken = false
+                    if (!layerShotTaken && RedAlerts.secondLayerStarted(now) && Prefs(this@RedAlertService).firstLayerWatch) {
+                        layerShotTaken = true
+                        scope.launch { postFirstLayer(now) }
+                    }
                     // Keep the last ready state so a short link drop doesn't hide a transition.
                     if (now.ready || prev == null) prev = now
                     updateWatch(now)
@@ -154,6 +162,33 @@ class RedAlertService : Service() {
         NotificationManagerCompat.from(this).notify(ALERT_ID, n)
     }
 
+    private suspend fun postFirstLayer(p: PrinterState) {
+        if (!canNotify()) return
+        val key = Prefs(this).apiKey.ifBlank { null }
+        val url = runCatching { client.webcamSnapshotUrl() }.getOrNull()
+        val image = url?.let { cameraSnapshot(http, it, key) }
+        val name = p.filename?.substringAfterLast('/')?.substringBeforeLast('.') ?: "Print"
+        val text = if (image != null) "Layer 1 is down on $name. Check it looks right." else "Layer 1 is down on $name (no camera image)."
+        val n = NotificationCompat.Builder(this, CHANNEL_LAYER)
+            .setSmallIcon(R.drawable.ic_stat_replicator)
+            .setContentTitle("First layer complete")
+            .setContentText(text)
+            .setContentIntent(openApp())
+            .setAutoCancel(true)
+            .setColor(0xFFFFCC66.toInt())
+            .apply {
+                if (image != null) {
+                    setLargeIcon(image)
+                    setStyle(NotificationCompat.BigPictureStyle().bigPicture(image).bigLargeIcon(null as android.graphics.Bitmap?))
+                } else {
+                    setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                }
+                if (p.isPrinting) addAction(0, "Pause", selfAction(ACTION_PAUSE, 3))
+            }
+            .build()
+        NotificationManagerCompat.from(this).notify(LAYER_ID, n)
+    }
+
     private fun canNotify(): Boolean = Build.VERSION.SDK_INT < 33 ||
         ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
@@ -161,6 +196,8 @@ class RedAlertService : Service() {
         const val CHANNEL_WATCH = "watch"
         const val CHANNEL_RED = "red_alert"
         const val CHANNEL_DONE = "replication"
+        const val CHANNEL_LAYER = "first_layer"
+        private const val LAYER_ID = 1703
         private const val WATCH_ID = 1701
         private const val ALERT_ID = 1702
         private const val ACTION_PAUSE = "dev.vantara.replicatorops.PAUSE"
@@ -179,6 +216,9 @@ class RedAlertService : Service() {
                     },
                     NotificationChannel(CHANNEL_DONE, "Replication complete", NotificationManager.IMPORTANCE_DEFAULT).apply {
                         description = "Print finished or cancelled"
+                    },
+                    NotificationChannel(CHANNEL_LAYER, "First-layer watch", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                        description = "Camera snapshot when the second layer starts"
                     },
                 )
             )

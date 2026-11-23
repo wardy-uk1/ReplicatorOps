@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.6.0
+- Live camera: the Camera button now plays the printer's live video stream (falls back to snapshots if the stream isn't available). A LIVE marker shows which you're seeing
+- Full screen camera with pinch to zoom
+- Subroutines: your printer's Klipper macros on the Ship systems screen. Star favourites to keep them at the top; the full list folds away
+- First-layer watch: Red Alert sends a camera snapshot when layer 2 starts, so you can check the first layer from anywhere (with a Pause button). Turn it on or off in Config > Red Alert
+
 ## 0.5.0 · Stardate 202623.11
 - Home screen widget: status, progress bar, percentage, time left and file name. Stretch it to show more. Tap it to open the app. Live while Red Alert is on or the app is open, otherwise every 30 minutes
 - Timelapse archive: a new menu item listing the printer's timelapse videos. Watch them in the app, save to your phone, share or delete

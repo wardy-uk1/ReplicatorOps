@@ -37,5 +37,15 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("asked_notifications", false)
         set(v) = sp.edit().putBoolean("asked_notifications", v).apply()
 
+    /** Macro names starred on the Ship systems screen. */
+    var favouriteMacros: Set<String>
+        get() = sp.getStringSet("fav_macros", emptySet())?.toSet() ?: emptySet()
+        set(v) = sp.edit().putStringSet("fav_macros", v).apply()
+
+    /** First-layer watch: send a camera snapshot when layer 2 starts. */
+    var firstLayerWatch: Boolean
+        get() = sp.getBoolean("first_layer_watch", true)
+        set(v) = sp.edit().putBoolean("first_layer_watch", v).apply()
+
     fun endpoint(): Endpoint? = Endpoint.parse(host, apiKey)
 }

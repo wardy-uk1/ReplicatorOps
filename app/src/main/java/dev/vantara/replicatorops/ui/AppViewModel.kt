@@ -28,6 +28,7 @@ import dev.vantara.replicatorops.data.GcodeOutlines
 import dev.vantara.replicatorops.data.FoundPrinter
 import dev.vantara.replicatorops.data.SensorSweep
 import dev.vantara.replicatorops.data.TimelapseFile
+import dev.vantara.replicatorops.data.Webcam
 import dev.vantara.replicatorops.widget.ReplicatorWidget
 import dev.vantara.replicatorops.widget.WidgetData
 import android.content.Intent
@@ -172,8 +173,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val meta: StateFlow<Map<String, FileMeta>> = _meta.asStateFlow()
     private val metaRequested = HashSet<String>()
 
-    private val _webcamUrl = MutableStateFlow<String?>(null)
-    val webcamUrl: StateFlow<String?> = _webcamUrl.asStateFlow()
+    private val _webcam = MutableStateFlow<Webcam?>(null)
+    val webcam: StateFlow<Webcam?> = _webcam.asStateFlow()
+
+    private val _favMacros = MutableStateFlow(prefs.favouriteMacros)
+    /** Macros starred on the Ship systems screen. */
+    val favMacros: StateFlow<Set<String>> = _favMacros.asStateFlow()
+    private val _macroHelp = MutableStateFlow<Map<String, String>>(emptyMap())
+    val macroHelp: StateFlow<Map<String, String>> = _macroHelp.asStateFlow()
 
     // ---- Thermal log, Replicator stores, Mission log -------------------------
 
@@ -274,9 +281,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     runCatching { client.temperatureStore() }.onSuccess { all ->
                         _temps.value = all.filterIndexed { i, _ -> i % 2 == 0 }.takeLast(TEMP_SAMPLES)
                     }
-                    _webcamUrl.value = runCatching { client.webcamSnapshotUrl() }.getOrNull()
+                    _webcam.value = runCatching { client.webcam() }.getOrNull()
+                    _macroHelp.value = client.gcodeHelp()
                 } else {
-                    _webcamUrl.value = null
+                    _webcam.value = null
                 }
             }
         }
@@ -371,6 +379,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         RedAlertService.sync(getApplication())
     }
 
+    // ---- Subroutines (macros) ------------------------------------------------------
+
+    fun toggleFavouriteMacro(name: String) {
+        val now = _favMacros.value.let { if (name in it) it - name else it + name }
+        _favMacros.value = now
+        prefs.favouriteMacros = now
+    }
+
+    fun runMacro(name: String) = gcode(name, "Subroutine $name engaged")
+
     fun sensorSweep() {
         if (_sweep.value.running) return
         _sweep.value = SweepState(running = true)
@@ -381,6 +399,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _sweep.value = SweepState(running = false, found = all, ran = true)
             if (all.isEmpty()) Chirp.deny() else Chirp.confirm()
         }
+    }
+
+    private val _firstLayer = MutableStateFlow(prefs.firstLayerWatch)
+    val firstLayer: StateFlow<Boolean> = _firstLayer.asStateFlow()
+
+    fun setFirstLayerWatch(on: Boolean) {
+        prefs.firstLayerWatch = on
+        _firstLayer.value = on
     }
 
     fun setRedAlert(on: Boolean) {

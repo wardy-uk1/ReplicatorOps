@@ -49,6 +49,17 @@ object RedAlerts {
         }
     }
 
+    /**
+     * True once a print is on its second layer: from the slicer's layer count when the
+     * file reports it, otherwise when the nozzle has climbed past a first layer's height.
+     */
+    fun secondLayerStarted(p: PrinterState): Boolean {
+        if (!p.ready || !p.isPrinting) return false
+        p.currentLayer?.let { if (p.totalLayers != null || it > 0) return it in 2..3 }
+        val z = p.position.getOrNull(2) ?: return false
+        return p.progress > 0.01 && z >= 0.5 && z < 2.0
+    }
+
     /** Text for the ongoing notification. */
     fun watch(p: PrinterState, host: String): Watch {
         val name = p.filename?.substringAfterLast('/')?.substringBeforeLast('.')

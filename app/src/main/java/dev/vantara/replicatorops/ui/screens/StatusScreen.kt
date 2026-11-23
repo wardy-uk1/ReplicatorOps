@@ -155,17 +155,7 @@ fun StatusScreen(vm: AppViewModel) {
         Spacer(Modifier.height(24.dp))
     }
 
-    if (showCamera) {
-        val camUrl by vm.webcamUrl.collectAsState()
-        AlertDialog(
-            onDismissRequest = { showCamera = false },
-            containerColor = Color.Black,
-            modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
-            title = { LcarsLabel("Visual sensors", color = s.nav[1], size = 20.sp, bold = true) },
-            text = { CameraView(camUrl, vm.http, vm.prefs.apiKey.ifBlank { null }, Modifier.fillMaxWidth()) },
-            confirmButton = { LcarsButton("Close", color = s.frameAlt) { showCamera = false } },
-        )
-    }
+    if (showCamera) CameraDialog(vm) { showCamera = false }
 
     if (showTargets) TargetLockDialog(vm) { showTargets = false }
 

@@ -5,6 +5,7 @@ import dev.vantara.replicatorops.data.Connection
 import dev.vantara.replicatorops.data.PrinterState
 import dev.vantara.replicatorops.ui.prettyObjectName
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -50,4 +51,17 @@ class RedAlertsTest {
         assertEquals("part a", prettyObjectName("part_a"))
         assertEquals("Pilbox set Friday step 1 #1", prettyObjectName("Pilbox_set_Friday_step.step_1_id_0_copy_0"))
     }
+}
+
+class FirstLayerTest {
+    private fun p(layer: Int?, z: Double = 0.2, state: String = "printing") = PrinterState(
+        connection = Connection.CONNECTED, klippy = "ready", printState = state,
+        progress = 0.05, currentLayer = layer, totalLayers = layer?.let { 100 }, position = listOf(0.0, 0.0, z),
+    )
+
+    @Test fun layerOneIsNotYet() = assertFalse(RedAlerts.secondLayerStarted(p(1)))
+    @Test fun layerTwoTriggers() = assertTrue(RedAlerts.secondLayerStarted(p(2)))
+    @Test fun lateJoinDoesNotTrigger() = assertFalse(RedAlerts.secondLayerStarted(p(40)))
+    @Test fun heightFallback() = assertTrue(RedAlerts.secondLayerStarted(p(null, z = 0.6)))
+    @Test fun notWhenPaused() = assertFalse(RedAlerts.secondLayerStarted(p(2, state = "paused")))
 }

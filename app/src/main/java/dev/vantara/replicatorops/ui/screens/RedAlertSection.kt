@@ -71,6 +71,14 @@ fun RedAlertSection(vm: AppViewModel) {
         LcarsChip("Offline", selected = !on) { vm.setRedAlert(false) }
     }
     if (on) {
+        val firstLayer by vm.firstLayer.collectAsState()
+        Spacer(Modifier.height(10.dp))
+        LcarsLabel("First-layer watch: a camera snapshot when layer 2 starts", color = s.accent2, size = 13.sp, maxLines = 2)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LcarsChip("Online", selected = firstLayer) { vm.setFirstLayerWatch(true) }
+            LcarsChip("Offline", selected = !firstLayer) { vm.setFirstLayerWatch(false) }
+        }
         Spacer(Modifier.height(8.dp))
         LcarsReadout("Notifications", if (allowed) "Allowed" else "Blocked", valueColor = if (allowed) s.accent else s.alert)
         if (!allowed) {

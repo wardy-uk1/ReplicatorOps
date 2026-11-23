@@ -88,6 +88,8 @@ data class PrinterState(
     val bedMin: Pair<Double, Double>? = null,
     val bedMax: Pair<Double, Double>? = null,
     val systems: ShipSystems = ShipSystems(),
+    /** Klipper gcode_macro names, minus hidden ones starting with "_". */
+    val macros: List<String> = emptyList(),
 ) {
     val online: Boolean get() = connection == Connection.CONNECTED
     val ready: Boolean get() = online && klippy == "ready"
@@ -139,3 +141,6 @@ data class TimelapseFile(
 ) {
     val name: String get() = path.substringAfterLast('/')
 }
+
+/** Webcam addresses: a still image and the live MJPEG stream. */
+data class Webcam(val snapshot: String, val stream: String)

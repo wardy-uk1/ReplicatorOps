@@ -246,13 +246,17 @@ class MoonrakerClient(
                 name.startsWith("aht20") ||
                 name == "save_variables"
         }
+        val macros = available.filter { it.startsWith("gcode_macro ") }
+            .map { it.removePrefix("gcode_macro ").trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("_") }
+            .sortedBy { it.uppercase() }
         val params = buildJsonObject {
             putJsonObject("objects") { wantedObjects.forEach { put(it, JsonNull) } }
         }
         val result = call("printer.objects.subscribe", params).jsonObject
         synchronized(objects) { objects.clear() }
         (result["status"] as? JsonObject)?.let { merge(it) }
-        _state.update { it.copy(klippy = "ready", klippyMessage = null) }
+        _state.update { it.copy(klippy = "ready", klippyMessage = null, macros = macros) }
     }
 
     private fun merge(update: JsonObject) {
@@ -574,15 +578,29 @@ class MoonrakerClient(
     }
 
     /** First enabled webcam's snapshot URL, or the usual QIDI/Fluidd path. */
-    suspend fun webcamSnapshotUrl(): String? {
+    suspend fun webcamSnapshotUrl(): String? = webcam()?.snapshot
+
+    /** First enabled webcam's snapshot and MJPEG stream URLs (QIDI/Fluidd defaults if none set). */
+    suspend fun webcam(): Webcam? {
         val ep = endpoint ?: return null
         val cams = runCatching {
             (call("server.webcams.list").jsonObject["webcams"] as? JsonArray)?.mapNotNull { it as? JsonObject }
         }.getOrNull().orEmpty()
         val cam = cams.firstOrNull { (it["enabled"] as? JsonPrimitive)?.contentOrNull != "false" }
         val snap = cam?.s("snapshot_url")?.takeIf { it.isNotBlank() }
-        return ep.resolve(snap ?: "/webcam/?action=snapshot")
+        val stream = cam?.s("stream_url")?.takeIf { it.isNotBlank() }
+        return Webcam(
+            snapshot = ep.resolve(snap ?: "/webcam/?action=snapshot"),
+            stream = ep.resolve(stream ?: "/webcam/?action=stream"),
+        )
     }
+
+    /** Klipper's own help text for each command, used as macro descriptions. */
+    suspend fun gcodeHelp(): Map<String, String> = runCatching {
+        call("printer.gcode.help").jsonObject.mapNotNull { (k, v) ->
+            (v as? JsonPrimitive)?.contentOrNull?.let { k.uppercase() to it }
+        }.toMap()
+    }.getOrDefault(emptyMap())
 
     companion object {
         private val SLOT_KEY = Regex("slot_?[0-3]")
