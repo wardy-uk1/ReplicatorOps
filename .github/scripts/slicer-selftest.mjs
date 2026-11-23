@@ -23,6 +23,7 @@ const browser = await puppeteer.launch({ executablePath: chrome, args: ['--no-sa
 const page = await browser.newPage();
 page.on('console', m => console.log('[page]', m.text()));
 page.on('pageerror', e => console.log('[page error]', e.message));
+page.on('response', r => { if (r.status() >= 400) console.log('[missing]', r.status(), r.url()); });
 await page.goto('http://localhost:8099/slicer/index.html?selftest=1');
 let result = null;
 for (let i = 0; i < 240 && !result; i++) {
@@ -34,7 +35,7 @@ server.close();
 if (!result) { console.error('Self-test timed out'); process.exit(1); }
 console.log(JSON.stringify({ done: result.done && { ...result.done, thumbnail: !!result.done.thumbnail, thumbSmall: undefined }, error: result.error, bytes: result.bytes }, null, 1));
 console.log(result.head);
-if (result.error || !result.done || result.bytes < 2000 || !result.head.includes('PRINT_START')) {
+if (result.error || !result.done || result.bytes < 2000 || !result.head.includes('PRINT_START') || !(result.done.seconds > 0)) {
     console.error('Slicer self-test FAILED');
     process.exit(1);
 }

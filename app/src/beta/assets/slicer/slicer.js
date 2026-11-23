@@ -177,7 +177,8 @@ async function slice(json) {
         }
         const lines = gcode.split('\n');
         const info = { layers: 0, seconds: 0, filamentMm: 0, thumbnail: thumbnail(300), thumbSmall: thumbnail(96) };
-        for (const l of lines.slice(0, 80)) {
+        // Kiri writes the totals at the end: "; --- filament used: N mm ---" and "; --- print time: Ns ---".
+        for (const l of lines.slice(-40)) {
             let m;
             if ((m = l.match(/;\s*--- print time:\s*([\d.]+)s/i)) || (m = l.match(/;\s*print time[^\d]*([\d.]+)/i))) info.seconds = parseFloat(m[1]);
             if ((m = l.match(/;\s*--- filament used:\s*([\d.]+)\s*mm/i)) || (m = l.match(/;\s*filament used[^\d]*([\d.]+)/i))) info.filamentMm = parseFloat(m[1]);
