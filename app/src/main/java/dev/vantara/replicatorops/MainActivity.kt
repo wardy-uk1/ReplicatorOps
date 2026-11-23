@@ -1,5 +1,21 @@
 package dev.vantara.replicatorops
 
+import android.content.pm.PackageManager
+import android.speech.SpeechRecognizer
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import dev.vantara.replicatorops.ui.lcars.LcarsChip
+import dev.vantara.replicatorops.ui.lcars.LcarsFont
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -115,7 +131,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(vm: AppViewModel) {
+internal fun App(vm: AppViewModel) {
     val s = LocalLcars.current
     val screen by vm.screen.collectAsState()
     val p by vm.printer.collectAsState()
@@ -147,14 +163,17 @@ private fun App(vm: AppViewModel) {
         val heard = r.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
         if (heard != null) vm.onVoice(heard)
     }
+    var typing by remember { mutableStateOf(false) }
     fun startListening() {
         Chirp.confirm()
+        // No microphone or no speech service (some Chromebooks, tablets, de-Googled phones):
+        // type the command instead.
+        val hasMic = context.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)
+        if (!hasMic || !SpeechRecognizer.isRecognitionAvailable(context)) { typing = true; return }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PROMPT, "Computer: awaiting command")
-        runCatching { listen.launch(intent) }.onFailure {
-            Toast.makeText(context, "No speech recogniser on this phone", Toast.LENGTH_SHORT).show()
-        }
+        runCatching { listen.launch(intent) }.onFailure { typing = true }
     }
     val voiceRequest by vm.voiceRequest.collectAsState()
     LaunchedEffect(voiceRequest) { if (voiceRequest) { vm.voiceRequestHandled(); startListening() } }
@@ -166,7 +185,7 @@ private fun App(vm: AppViewModel) {
         onSelect = { vm.select(screens[it]) },
         footer = { Chronometer(stateLabel(p), now) },
         onTitleClick = { picking = true },
-        titleAction = { Combadge { startListening() } },
+        titleAction = { Combadge(onLongClick = { typing = true }) { startListening() } },
     ) {
         when (screen) {
             Screen.STATUS -> StatusScreen(vm)
@@ -182,6 +201,7 @@ private fun App(vm: AppViewModel) {
 
     CaptainsLogDialog(vm)
     if (picking) FleetPicker(vm) { picking = false }
+    if (typing) TypedCommand(vm) { typing = false }
     val confirmAbort by vm.confirmAbort.collectAsState()
     if (confirmAbort) {
         LcarsConfirm(
@@ -224,10 +244,11 @@ private fun Chronometer(state: String, now: LocalDateTime) {
 
 /** Combadge button in the title bar: tap, then speak a command. */
 @Composable
-private fun Combadge(onClick: () -> Unit) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun Combadge(onLongClick: () -> Unit, onClick: () -> Unit) {
     val s = LocalLcars.current
     Canvas(
-        Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onClick)
+        Modifier.size(30.dp).clip(CircleShape).combinedClickable(onLongClick = onLongClick, onClick = onClick)
     ) {
         val w = size.width
         val h = size.height
@@ -273,5 +294,42 @@ private fun FleetPicker(vm: AppViewModel, onDismiss: () -> Unit) {
             LcarsButton("Manage", color = s.nav[2]) { vm.select(Screen.CONFIG); onDismiss() }
         },
         dismissButton = { LcarsButton("Close", color = s.frameAlt) { onDismiss() } },
+    )
+}
+
+/** Typed "Computer," commands: for devices without a microphone or speech service, or a long-press on the combadge. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TypedCommand(vm: AppViewModel, onDismiss: () -> Unit) {
+    val s = LocalLcars.current
+    var text by remember { mutableStateOf("") }
+    fun send(cmd: String) { if (cmd.isNotBlank()) { vm.onVoice(cmd); onDismiss() } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.Black,
+        modifier = Modifier.border(2.dp, s.accent, RoundedCornerShape(24.dp)),
+        title = { LcarsLabel("Computer: awaiting command", color = s.accent, size = 20.sp, bold = true) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text),
+                    placeholder = { LcarsLabel("e.g. status report", color = s.hint) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { send(text) }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Status report", "Time remaining", "Temperatures", "Pause", "Resume", "Lights on", "Lights off").forEach { c ->
+                        LcarsChip(c, selected = false) { send(c) }
+                    }
+                }
+            }
+        },
+        confirmButton = { LcarsButton("Engage", color = s.accent, enabled = text.isNotBlank()) { send(text) } },
+        dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { onDismiss() } },
     )
 }

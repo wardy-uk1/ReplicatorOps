@@ -67,6 +67,9 @@ class MoonrakerClient(
     private val _fileListChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val fileListChanged: SharedFlow<Unit> = _fileListChanged
 
+    /** Screenshot tests: show a made-up printer without connecting. */
+    internal fun showForTest(s: PrinterState) { _state.value = s }
+
     fun connect(ep: Endpoint) {
         disconnect()
         endpoint = ep

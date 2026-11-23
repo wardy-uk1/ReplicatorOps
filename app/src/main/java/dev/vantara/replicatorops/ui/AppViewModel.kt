@@ -453,6 +453,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Screenshot tests: sample files. */
+    internal fun showFilesForTest(files: List<GcodeFile>) { _files.value = files }
+
     fun switchPrinter(id: Long) {
         val target = prefs.printers.firstOrNull { it.id == id } ?: return
         val ep = Endpoint.parse(target.host, target.apiKey)

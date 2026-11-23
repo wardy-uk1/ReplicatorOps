@@ -1,0 +1,30 @@
+name: Screenshots
+
+# Renders the main screens on phones, foldables, tablets and Chromebook sizes
+# (Robolectric + Roborazzi, no emulator) and uploads the PNGs as an artifact.
+on:
+  push:
+    branches: [main]
+    paths: ['app/src/**', 'app/build.gradle.kts', '.github/workflows/screenshots.yml']
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Render screens
+        run: ./gradlew recordRoborazziDebug -Pscreenshots --tests '*ScreenSizesTest*'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: |
+            app/build/outputs/roborazzi/*.png
+            app/build/reports/tests/
+          if-no-files-found: warn
