@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.8.3
+## 0.8.3 · Stardate 202623.11
 - New Commands tab: every "Computer," command with what to say. Tap one to run it (with a spoken reply); Abort asks first
 - Speak a command or Type a command buttons at the top
 - Your printer's macros (Subroutines) are listed there too, with favourites
