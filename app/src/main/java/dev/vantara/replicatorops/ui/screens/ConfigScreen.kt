@@ -107,7 +107,7 @@ fun ConfigScreen(vm: AppViewModel) {
         LcarsReadout("Klipper", p.klippy)
         p.klippyMessage?.let { LcarsLabel(it, color = s.text, size = 14.sp, maxLines = 6) }
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LcarsButton("Klipper restart", color = s.nav[0], enabled = p.online) {
                 if (p.isBusy) confirmRestart = "klipper" else vm.klipperRestart()
             }
@@ -140,7 +140,7 @@ fun ConfigScreen(vm: AppViewModel) {
 
         LcarsSectionHeader("About", color = s.hint)
         LcarsLabel(
-            "Replicator Ops ${vm.appVersion} · open-source Moonraker client. Not affiliated with QIDI Tech or Paramount.",
+            "Replicator Ops ${vm.appVersion} · Moonraker client for QIDI printers. Not affiliated with QIDI Tech or Paramount.",
             color = s.accent2, size = 13.sp, maxLines = 4,
         )
         Spacer(Modifier.height(24.dp))
