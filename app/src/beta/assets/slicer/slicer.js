@@ -43,12 +43,23 @@ scene.add(bed);
 
 let model = null;
 let turn = -0.6, tilt = 1.0, dist = 520, targetZ = 20;
+let radius = 135;      // bounding-sphere radius of what we're framing (the bed until a model loads)
+let autoFit = true;    // keep the model framed until the user zooms
+
+/** Distance at which a sphere of [radius] fills the view, for the current aspect ratio. */
+function fitDistance() {
+    const vfov = camera.fov * Math.PI / 180;
+    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * Math.max(camera.aspect, 0.1));
+    const fov = Math.min(vfov, hfov);
+    return Math.min(1500, Math.max(60, radius * 1.12 / Math.sin(fov / 2)));
+}
 
 function layout() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
     renderer.setSize(w, h, false);
-    camera.aspect = w / Math.max(h, 1);
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    if (autoFit) dist = fitDistance();
     draw();
 }
 
@@ -79,12 +90,21 @@ renderer.domElement.addEventListener('pointermove', e => {
     if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-        if (pinch) dist = Math.min(1500, Math.max(80, dist * pinch / d));
+        if (pinch) { dist = Math.min(1500, Math.max(40, dist * pinch / d)); autoFit = false; }
         pinch = d;
     }
     draw();
 });
 window.addEventListener('resize', layout);
+// The preview is resized when the app moves it between screens or rotates; keep it framed.
+if (window.ResizeObserver) new ResizeObserver(() => layout()).observe(document.body);
+// Double-tap: frame the model again.
+let lastTap = 0;
+renderer.domElement.addEventListener('pointerup', e => {
+    const now = Date.now();
+    if (now - lastTap < 300) { autoFit = true; turn = -0.6; tilt = 1.0; layout(); }
+    lastTap = now;
+});
 
 function showModel(vertices, colour) {
     if (model) scene.remove(model);
@@ -98,8 +118,11 @@ function showModel(vertices, colour) {
     model = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: colour || 0xffcc66, shininess: 30 }));
     scene.add(model);
     const size = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z];
-    targetZ = size[2] / 3;
-    dist = Math.max(300, Math.max(...size) * 2.6);
+    // Frame the model itself: look at its middle, from far enough to see all of it.
+    targetZ = size[2] / 2;
+    radius = Math.max(10, Math.hypot(size[0], size[1], size[2]) / 2);
+    autoFit = true;
+    turn = -0.6; tilt = 1.0;
     msg.style.display = 'none';
     layout();
     return size;
@@ -108,16 +131,19 @@ function showModel(vertices, colour) {
 /** PNG thumbnail (base64) of the model for the printer's screen. */
 function thumbnail(px) {
     const keep = [turn, tilt, dist, renderer.getPixelRatio()];
+    const fitWas = autoFit;
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setPixelRatio(1);
     renderer.setSize(px, px, false);
     camera.aspect = 1; camera.updateProjectionMatrix();
     bed.visible = false;
     turn = -0.6; tilt = 0.95;
+    dist = fitDistance();
     draw();
     const url = renderer.domElement.toDataURL('image/png');
     bed.visible = true;
     [turn, tilt, dist] = keep;
+    autoFit = fitWas;
     renderer.setPixelRatio(keep[3]);
     renderer.setSize(w, h, false);
     layout();
