@@ -4,6 +4,10 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 0.4.3
+- Load pattern: files retrieved from the printer can be loaded back. Some ".gcode.3mf" files on QIDI printers are plain G-code inside, and these were wrongly flagged "Pattern requires slicing"
+- Sliced 3MF files are read more reliably
+
 ## 0.4.2 · Stardate 202623.11
 - Filament bay: a slot's type now follows the printer. Setting it on the printer's screen or using Read tag replaces anything set in the app's Edit slot
 - Fuller filament names (like "PLA Silk") are shown when the printer reports them
