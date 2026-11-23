@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dev.vantara.replicatorops.data.Connection
 import dev.vantara.replicatorops.data.Endpoint
 import dev.vantara.replicatorops.data.FileMeta
+import dev.vantara.replicatorops.data.SlicedMetaStore
 import dev.vantara.replicatorops.data.GcodeFile
 import dev.vantara.replicatorops.data.HistoryJob
 import dev.vantara.replicatorops.data.SlotInfo
@@ -727,9 +728,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!force && !metaRequested.add(path)) return
         metaRequested.add(path)
         viewModelScope.launch {
-            runCatching { client.metadata(path) }.onSuccess { m -> _meta.update { it + (path to m) } }
+            fetchMeta(path)?.let { m -> _meta.update { it + (path to m) } }
         }
     }
+
+    /**
+     * The printer's metadata for a file. If it has no preview or print time, Moonraker is
+     * asked to read the file again, and anything still missing is filled in from what the
+     * app saved when it sliced and sent the file itself.
+     */
+    private suspend fun fetchMeta(path: String): FileMeta? {
+        var m = runCatching { client.metadata(path) }.getOrNull()
+        if (m == null || m.thumbnailUrl == null || m.estimatedSeconds == null) {
+            runCatching { client.metascan(path) }.getOrNull()?.let { m = it }
+        }
+        val local = slicedMeta.read(path) ?: return m
+        val got = m ?: return local
+        return got.copy(
+            thumbnailUrl = got.thumbnailUrl ?: local.thumbnailUrl,
+            estimatedSeconds = got.estimatedSeconds ?: local.estimatedSeconds,
+            filamentMm = got.filamentMm ?: local.filamentMm,
+            layerHeight = got.layerHeight ?: local.layerHeight,
+            objectHeight = got.objectHeight ?: local.objectHeight,
+            slicer = got.slicer ?: local.slicer,
+            filamentTypes = got.filamentTypes.ifEmpty { local.filamentTypes },
+        )
+    }
+
+    /** Details of files this app sliced and sent, kept on the phone (see [fetchMeta]). */
+    private val slicedMeta by lazy { SlicedMetaStore(File(getApplication<Application>().filesDir, "sliced")) }
 
     fun startPrint(path: String) = action("Print started") {
         client.call("printer.print.start", buildJsonObject { put("filename", path) })
@@ -1078,19 +1105,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     p.file.delete()
                     Chirp.confirm()
                     say("Pattern stored: $path")
-                    // Show what we already know (e.g. from the on-phone slicer) until the printer has read the file.
-                    seed?.let { m -> _meta.update { it + (path to m) } }
+                    // Show what we already know (e.g. from the on-phone slicer) until the printer has read the
+                    // file, and keep it in case the printer can't read it.
+                    val known = seed?.let { slicedMeta.save(path, it) ?: it }
+                    known?.let { m -> _meta.update { it + (path to m) } }
                     refreshFiles()
                     select(Screen.FILES)
                     _openFile.value = GcodeFile(path, System.currentTimeMillis() / 1000.0, size)
                     // Moonraker reads the file's metadata just after upload; keep asking until it has.
-                    for (wait in listOf(0L, 2500L, 5000L, 10000L)) {
+                    for (wait in listOf(1500L, 3000L, 6000L)) {
                         delay(wait)
-                        val fresh = runCatching { client.metadata(path) }.getOrNull() ?: continue
-                        if (fresh.estimatedSeconds != null || fresh.thumbnailUrl != null || seed == null) {
-                            _meta.update { it + (path to fresh) }
-                            if (fresh.estimatedSeconds != null && fresh.thumbnailUrl != null) break
-                        }
+                        val fresh = fetchMeta(path) ?: continue
+                        _meta.update { it + (path to fresh) }
+                        if (fresh.estimatedSeconds != null && fresh.thumbnailUrl != null) break
                     }
                 }
                 .onFailure { e ->

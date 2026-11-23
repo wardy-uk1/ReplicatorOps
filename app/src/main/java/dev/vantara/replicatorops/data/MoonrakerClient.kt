@@ -515,9 +515,15 @@ class MoonrakerClient(
         }.sortedByDescending { it.modified }
     }
 
-    suspend fun metadata(path: String): FileMeta {
+    suspend fun metadata(path: String): FileMeta =
+        parseMeta(path, call("server.files.metadata", buildJsonObject { put("filename", path) }).jsonObject)
+
+    /** Asks Moonraker to read the file's metadata again now (e.g. if it was busy when the file arrived). */
+    suspend fun metascan(path: String): FileMeta =
+        parseMeta(path, call("server.files.metascan", buildJsonObject { put("filename", path) }).jsonObject)
+
+    private fun parseMeta(path: String, m: JsonObject): FileMeta {
         val ep = endpoint ?: throw IOException("Not connected")
-        val m = call("server.files.metadata", buildJsonObject { put("filename", path) }).jsonObject
         val thumb = (m["thumbnails"] as? JsonArray)
             ?.mapNotNull { it as? JsonObject }
             ?.maxByOrNull { it.d("width") ?: 0.0 }

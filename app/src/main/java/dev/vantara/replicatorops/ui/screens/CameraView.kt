@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -103,6 +105,13 @@ fun CameraView(cam: Webcam?, http: OkHttpClient, apiKey: String?, modifier: Modi
     var failed by remember(cam) { mutableStateOf(false) }
     var live by remember(cam) { mutableStateOf(false) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+
+    // Keep the screen on while the camera is showing.
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
 
     LaunchedEffect(cam, lifecycle) {
         if (cam == null) return@LaunchedEffect
