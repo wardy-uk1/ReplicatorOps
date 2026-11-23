@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 0.6.0
+## 0.6.0 · Stardate 202623.11
 - Live camera: the Camera button now plays the printer's live video stream (falls back to snapshots if the stream isn't available). A LIVE marker shows which you're seeing
 - Full screen camera with pinch to zoom
 - Subroutines: your printer's Klipper macros on the Ship systems screen. Star favourites to keep them at the top; the full list folds away
