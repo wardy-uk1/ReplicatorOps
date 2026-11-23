@@ -21,8 +21,16 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+      # Robolectric downloads the Android runtime on first use; keep it between runs.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-android-all-34
       - name: Render screens
-        run: ./gradlew recordRoborazziDebug -Pscreenshots --tests '*ScreenSizesTest*'
+        # The Android runtime download sometimes fails on GitHub; one retry with it cached usually fixes it.
+        run: |
+          ./gradlew recordRoborazziDebug -Pscreenshots --tests '*ScreenSizesTest*' || \
+          ./gradlew recordRoborazziDebug -Pscreenshots --tests '*ScreenSizesTest*'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
