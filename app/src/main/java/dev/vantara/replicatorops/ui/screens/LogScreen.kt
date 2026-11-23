@@ -101,7 +101,7 @@ fun LogScreen(vm: AppViewModel) {
         }
 
         LcarsSectionHeader("Recent", color = s.frame)
-        if (jobs.isEmpty() && !loading) LcarsLabel("No prints in this period", color = s.dim, size = 14.sp)
+        if (jobs.isEmpty() && !loading) LcarsLabel("No prints in this period", color = s.hint, size = 14.sp)
         (if (showAll) jobs else jobs.take(8)).forEach { JobRow(it) }
         if (jobs.size > 8 && !showAll) {
             Spacer(Modifier.height(10.dp))

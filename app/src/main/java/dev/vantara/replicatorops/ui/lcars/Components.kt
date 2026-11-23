@@ -129,7 +129,7 @@ fun LcarsFrame(
     nav: List<NavItem>,
     selected: Int,
     onSelect: (Int) -> Unit,
-    footer: String,
+    footer: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val s = LocalLcars.current
@@ -172,7 +172,7 @@ fun LcarsFrame(
             LcarsElbow(Modifier.weight(1f).fillMaxHeight(), s.frame, s.bottomBarHeight, flip = true)
             Spacer(Modifier.width(8.dp))
             Box(Modifier.height(maxOf(s.bottomBarHeight, 18.dp)), contentAlignment = Alignment.CenterStart) {
-                LcarsLabel(footer, color = s.frame, size = 13.sp)
+                footer()
             }
             Spacer(Modifier.width(8.dp))
             EndCap(s.frame, s.bottomBarHeight)

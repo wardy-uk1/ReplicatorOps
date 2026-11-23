@@ -69,7 +69,7 @@ fun BoxSection(vm: AppViewModel, canAct: Boolean) {
     }
 
     if (box == null) {
-        LcarsLabel("No Box data from the printer yet. Slots below are your own settings.", color = s.dim, size = 13.sp, maxLines = 3)
+        LcarsLabel("No Box data from the printer yet. Slots below are your own settings.", color = s.hint, size = 13.sp, maxLines = 3)
         Spacer(Modifier.height(6.dp))
     } else {
         Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -104,7 +104,7 @@ fun BoxSection(vm: AppViewModel, canAct: Boolean) {
                 LcarsLabel("Slot ${v.index + 1}", color = s.accent2, size = 12.sp)
                 SpoolIcon(if (v.loaded || v.color != null) Color(v.color ?: 0xFF777777) else null)
                 LcarsLabel(if (v.loaded || v.material != null) v.material ?: "?" else "Empty", color = s.text, size = 12.sp)
-                LcarsLabel(v.spool?.let { "%.0f g".format(it.remainingGrams) } ?: " ", color = Color(0xFF9A8A7A), size = 11.sp)
+                LcarsLabel(v.spool?.let { "%.0f g".format(it.remainingGrams) } ?: " ", color = s.hint, size = 11.sp)
             }
         }
     }
@@ -186,7 +186,7 @@ private fun SlotDialog(
                 Spacer(Modifier.height(10.dp))
                 LcarsLabel(
                     "Colour is sent to the printer. Type is kept on this phone, as the printer only stores QIDI filament codes.",
-                    color = Color(0xFF9A8A7A), size = 12.sp, maxLines = 3,
+                    color = s.hint, size = 12.sp, maxLines = 3,
                 )
             }
         },

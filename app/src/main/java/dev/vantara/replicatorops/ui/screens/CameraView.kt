@@ -69,7 +69,7 @@ fun CameraView(url: String?, http: OkHttpClient, apiKey: String?, modifier: Modi
             f != null -> ZoomableBox(Modifier.fillMaxSize()) {
                 Image(f, contentDescription = "Printer camera. Pinch to zoom, double-tap to reset.", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             }
-            url == null -> LcarsLabel("Visual sensors offline", color = s.dim)
+            url == null -> LcarsLabel("Visual sensors offline", color = s.hint)
             failed -> LcarsLabel("No camera signal", color = s.alert)
             else -> LcarsLabel("Acquiring image…", color = s.accent2)
         }

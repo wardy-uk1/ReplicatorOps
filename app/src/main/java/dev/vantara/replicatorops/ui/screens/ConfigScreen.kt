@@ -62,7 +62,7 @@ fun ConfigScreen(vm: AppViewModel) {
             value = host,
             onValueChange = { host = it },
             label = { LcarsLabel("Printer address", color = s.accent2, size = 13.sp) },
-            placeholder = { LcarsLabel("192.168.1.50, name.ts.net or IPv6", color = s.dim) },
+            placeholder = { LcarsLabel("192.168.1.50, name.ts.net or IPv6", color = s.hint) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             textStyle = field,
@@ -80,7 +80,7 @@ fun ConfigScreen(vm: AppViewModel) {
         )
         LcarsLabel(
             "No port = port 80 (QIDI's web UI). Add :7125 to talk to Moonraker directly. IPv6 works as typed, or as [address]:7125 with a port.",
-            color = s.dim, size = 13.sp, maxLines = 4,
+            color = s.hint, size = 13.sp, maxLines = 4,
         )
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -105,7 +105,7 @@ fun ConfigScreen(vm: AppViewModel) {
         LcarsButton("Firmware restart", color = s.nav[3], enabled = p.online) { vm.firmwareRestart() }
         if (p.boxRaw.isNotEmpty()) {
             LcarsSectionHeader("QIDI Box raw data", color = s.nav[3])
-            LcarsLabel("Send me a screenshot of this if the Box screen looks wrong.", color = s.dim, size = 12.sp, maxLines = 2)
+            LcarsLabel("Send me a screenshot of this if the Box screen looks wrong.", color = s.hint, size = 12.sp, maxLines = 2)
             p.boxRaw.forEach { (k, v) ->
                 Text("$k = $v", color = s.text, fontSize = 12.sp, fontFamily = LcarsFont)
             }
@@ -113,7 +113,7 @@ fun ConfigScreen(vm: AppViewModel) {
 
         UplinkSection(vm)
 
-        LcarsSectionHeader("About", color = s.dim)
+        LcarsSectionHeader("About", color = s.hint)
         LcarsLabel(
             "Replicator Ops ${vm.appVersion} · open-source Moonraker client. Not affiliated with QIDI Tech or Paramount.",
             color = s.accent2, size = 13.sp, maxLines = 4,

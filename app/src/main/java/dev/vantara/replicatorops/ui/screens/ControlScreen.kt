@@ -111,7 +111,7 @@ fun ControlScreen(vm: AppViewModel) {
             LcarsButton("ABS", color = s.nav[1], enabled = canAct) { vm.preheat(260, 100) }
             LcarsButton("Cool down", color = s.accent2, enabled = canAct) { vm.coolDown() }
         }
-        LcarsLabel("Tap a heater to set its target", color = s.dim, size = 13.sp, modifier = Modifier.padding(top = 4.dp))
+        LcarsLabel("Tap a heater to set its target", color = s.hint, size = 13.sp, modifier = Modifier.padding(top = 4.dp))
 
         // ---- Fan, speed, flow ----------------------------------------------
         LcarsSectionHeader("Atmospherics", color = s.nav[1])
@@ -176,7 +176,7 @@ fun ControlScreen(vm: AppViewModel) {
                 value = console,
                 onValueChange = { console = it },
                 singleLine = true,
-                placeholder = { LcarsLabel("G-code", color = s.dim) },
+                placeholder = { LcarsLabel("G-code", color = s.hint) },
                 textStyle = TextStyle(fontFamily = LcarsFont, fontSize = 17.sp, color = s.text),
                 modifier = Modifier.weight(1f),
             )
@@ -191,7 +191,7 @@ fun ControlScreen(vm: AppViewModel) {
         LcarsButton("Emergency stop", color = s.alert, enabled = p.online, sound = Chirp::alert, modifier = Modifier.fillMaxWidth()) {
             confirm = "estop"
         }
-        LcarsLabel("Halts Klipper at once. You'll need a firmware restart afterwards.", color = s.dim, size = 13.sp, maxLines = 2)
+        LcarsLabel("Halts Klipper at once. You'll need a firmware restart afterwards.", color = s.hint, size = 14.sp, maxLines = 3)
         Spacer(Modifier.height(24.dp))
     }
 

@@ -157,7 +157,7 @@ private fun FileTile(f: GcodeFile, m: FileMeta?, vm: AppViewModel, onClick: () -
                     modifier = Modifier.fillMaxSize().padding(4.dp),
                 )
             } else {
-                LcarsLabel("No preview", color = s.dim, size = 12.sp)
+                LcarsLabel("No preview", color = s.hint, size = 12.sp)
             }
         }
         Column(Modifier.padding(horizontal = 7.dp, vertical = 5.dp)) {
@@ -199,7 +199,7 @@ private fun FileDialog(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    LcarsLabel("Pinch to zoom · double-tap to reset", color = s.dim, size = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                    LcarsLabel("Pinch to zoom · double-tap to reset", color = s.hint, size = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     Spacer(Modifier.height(6.dp))
                 }
                 LcarsReadout("Est. time", formatDuration(meta?.estimatedSeconds))

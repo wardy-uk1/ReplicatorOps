@@ -110,7 +110,7 @@ fun TempTile(label: String, current: Double?, target: Double?, color: Color) {
 fun TempChart(samples: List<TempSample>, modifier: Modifier = Modifier) {
     val s = LocalLcars.current
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(color = Color(0xFF9A8A7A), fontSize = 10.sp, fontFamily = LcarsFont)
+    val labelStyle = TextStyle(color = s.hint, fontSize = 10.sp, fontFamily = LcarsFont)
     Canvas(
         modifier.fillMaxWidth().height(120.dp)
             .semantics { contentDescription = "Temperature graph for the last 30 minutes" }

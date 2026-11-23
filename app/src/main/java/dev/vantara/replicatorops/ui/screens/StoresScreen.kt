@@ -76,13 +76,13 @@ fun StoresScreen(vm: AppViewModel) {
             value = query,
             onValueChange = { query = it },
             singleLine = true,
-            placeholder = { LcarsLabel("Search material, colour or brand", color = s.dim, size = 14.sp) },
+            placeholder = { LcarsLabel("Search material, colour or brand", color = s.hint, size = 14.sp) },
             textStyle = TextStyle(fontFamily = LcarsFont, fontSize = 17.sp, color = s.text),
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(8.dp))
         if (spools.isEmpty()) {
-            LcarsLabel("No spools yet. Tap + Add to log your first one.", color = s.dim, size = 14.sp, maxLines = 2)
+            LcarsLabel("No spools yet. Tap + Add to log your first one.", color = s.hint, size = 14.sp, maxLines = 2)
         }
         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(shown, key = { it.id }) { sp ->
@@ -91,7 +91,7 @@ fun StoresScreen(vm: AppViewModel) {
             item {
                 LcarsLabel(
                     "Weights drop automatically after each print, from the spool in the active Box slot or the one marked in use. Red bar = running low.",
-                    color = Color(0xFF9A8A7A), size = 12.sp, maxLines = 4, modifier = Modifier.padding(vertical = 8.dp),
+                    color = s.hint, size = 12.sp, maxLines = 4, modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
         }
