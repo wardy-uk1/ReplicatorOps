@@ -69,6 +69,7 @@ enum class Screen(val label: String) {
     SYSTEMS("Systems"),
     FILES("Files"),
     TIMELAPSE("Timelapse"),
+    COMMANDS("Commands"),
     CONFIG("Config"),
     STORES("Stores"),
     LOG("Log");
@@ -81,7 +82,7 @@ enum class Screen(val label: String) {
         }
 }
 
-val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.TIMELAPSE, Screen.CONFIG)
+val SIDEBAR_SCREENS = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.TIMELAPSE, Screen.COMMANDS, Screen.CONFIG)
 
 enum class LogPeriod(val label: String, val days: Int?) { DAY("Day", 1), WEEK("Week", 7), MONTH("Month", 30), YEAR("Year", 365), ALL("All", null); }
 
@@ -538,9 +539,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Handles what the speech recogniser heard. */
-    fun onVoice(heard: String) {
+    fun onVoice(heard: String) = runCommand(Voice.parse(heard))
+
+    /** Runs a command from voice, typing or the Commands tab, with a spoken reply. */
+    fun runCommand(command: VoiceCommand) {
         val p = printer.value
-        when (Voice.parse(heard)) {
+        when (command) {
             VoiceCommand.STATUS -> speak(Voice.statusReport(p))
             VoiceCommand.TEMPERATURES -> speak(Voice.temperatures(p).ifEmpty { "Temperature sensors unavailable." })
             VoiceCommand.TIME_LEFT -> speak(Voice.timeLeft(p))
@@ -562,6 +566,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val voiceRequest: StateFlow<Boolean> = _voiceRequest.asStateFlow()
     fun requestVoice() { _voiceRequest.value = true }
     fun voiceRequestHandled() { _voiceRequest.value = false }
+
+    private val _typingRequest = MutableStateFlow(false)
+    /** Opens the typed "Computer" command box. */
+    val typingRequest: StateFlow<Boolean> = _typingRequest.asStateFlow()
+    fun requestTyping() { _typingRequest.value = true }
+    fun typingRequestHandled() { _typingRequest.value = false }
 
     /** Launcher shortcuts arrive before the printer link is up; wait for it (up to 10 s). */
     fun shortcut(action: String) {

@@ -41,7 +41,7 @@ class ScreenSizesTest {
 
     @get:Rule val compose = createComposeRule()
 
-    private val screens = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.CONFIG)
+    private val screens = listOf(Screen.STATUS, Screen.CONTROL, Screen.SYSTEMS, Screen.FILES, Screen.COMMANDS, Screen.CONFIG)
 
     private fun sample(): PrinterState = PrinterState(
         connection = Connection.CONNECTED,

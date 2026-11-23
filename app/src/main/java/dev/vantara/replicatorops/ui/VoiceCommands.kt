@@ -9,7 +9,32 @@ enum class VoiceCommand {
     LIGHTS_ON, LIGHTS_OFF, COOL_DOWN, HOME, NEXT_IN_QUEUE, UNKNOWN,
 }
 
+/** One entry in the Commands tab. */
+data class CommandInfo(
+    val command: VoiceCommand,
+    val title: String,
+    val say: List<String>,
+    val description: String,
+    /** Needs an on-screen confirmation before it runs. */
+    val confirm: Boolean = false,
+)
+
 object Voice {
+
+    /** Everything the Commands tab lists, in display order. */
+    val catalogue = listOf(
+        CommandInfo(VoiceCommand.STATUS, "Status report", listOf("status report", "progress"), "Replicator state, progress, time remaining and temperatures."),
+        CommandInfo(VoiceCommand.TIME_LEFT, "Time remaining", listOf("time remaining", "how long is left"), "How long until the current print finishes."),
+        CommandInfo(VoiceCommand.TEMPERATURES, "Temperatures", listOf("temperatures", "temps"), "Nozzle and bed temperatures."),
+        CommandInfo(VoiceCommand.PAUSE, "Pause replication", listOf("pause", "pause replication"), "Pauses the current print."),
+        CommandInfo(VoiceCommand.RESUME, "Resume replication", listOf("resume", "continue"), "Resumes a paused print."),
+        CommandInfo(VoiceCommand.ABORT, "Abort replication", listOf("abort", "cancel replication"), "Cancels the current print. Asks first.", confirm = true),
+        CommandInfo(VoiceCommand.LIGHTS_ON, "Lights on", listOf("lights on", "lights up"), "Turns the case light on."),
+        CommandInfo(VoiceCommand.LIGHTS_OFF, "Lights off", listOf("lights off", "lights down"), "Turns the case light off."),
+        CommandInfo(VoiceCommand.COOL_DOWN, "Cool down", listOf("cool down", "heaters off"), "Turns the nozzle and bed heaters off."),
+        CommandInfo(VoiceCommand.HOME, "Home axes", listOf("home", "home all axes"), "Homes X, Y and Z (not during a print)."),
+        CommandInfo(VoiceCommand.NEXT_IN_QUEUE, "Next in queue", listOf("next", "engage next"), "Tells you how to start the next queued print."),
+    )
 
     /** Turns what was heard into a command. "Computer" at the start is optional. */
     fun parse(heard: String): VoiceCommand {

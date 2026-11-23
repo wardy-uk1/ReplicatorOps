@@ -130,7 +130,7 @@ private fun s() = LocalLcars.current
 
 /** Subroutines: Klipper macros. Starred ones sit at the top; the full list folds away. */
 @Composable
-private fun Subroutines(vm: AppViewModel) {
+internal fun Subroutines(vm: AppViewModel) {
     val s = LocalLcars.current
     val p by vm.printer.collectAsState()
     val favs by vm.favMacros.collectAsState()

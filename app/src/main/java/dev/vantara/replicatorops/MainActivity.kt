@@ -74,6 +74,7 @@ import dev.vantara.replicatorops.ui.screens.LogScreen
 import dev.vantara.replicatorops.ui.screens.StoresScreen
 import dev.vantara.replicatorops.ui.screens.SystemsScreen
 import dev.vantara.replicatorops.ui.screens.TimelapseScreen
+import dev.vantara.replicatorops.ui.screens.CommandsScreen
 import dev.vantara.replicatorops.ui.screens.AskForNotificationsOnce
 import dev.vantara.replicatorops.ui.screens.UplinkAlert
 import dev.vantara.replicatorops.ui.screens.StatusScreen
@@ -177,6 +178,8 @@ internal fun App(vm: AppViewModel) {
     }
     val voiceRequest by vm.voiceRequest.collectAsState()
     LaunchedEffect(voiceRequest) { if (voiceRequest) { vm.voiceRequestHandled(); startListening() } }
+    val typingRequest by vm.typingRequest.collectAsState()
+    LaunchedEffect(typingRequest) { if (typingRequest) { vm.typingRequestHandled(); typing = true } }
 
     LcarsFrame(
         title = if (fleet.size > 1) active?.name ?: "Replicator Ops" else "Replicator Ops",
@@ -193,6 +196,7 @@ internal fun App(vm: AppViewModel) {
             Screen.SYSTEMS -> SystemsScreen(vm)
             Screen.FILES -> FilesScreen(vm)
             Screen.TIMELAPSE -> TimelapseScreen(vm)
+            Screen.COMMANDS -> CommandsScreen(vm)
             Screen.CONFIG -> ConfigScreen(vm)
             Screen.STORES -> StoresScreen(vm)
             Screen.LOG -> LogScreen(vm)

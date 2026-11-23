@@ -53,7 +53,7 @@ val Century24 = LcarsStyle(
     nav = listOf(Color(0xFFFFCC99), Color(0xFF9999FF), Color(0xFFCC6699), Color(0xFFFF9966)),
     sidebar = listOf(
         Color(0xFFFFCC99), Color(0xFF9999FF), Color(0xFFCC6699),
-        Color(0xFFFF9966), Color(0xFF9999CC), Color(0xFFCC9966),
+        Color(0xFFFF9966), Color(0xFF9999CC), Color(0xFFFFAA90), Color(0xFFCC9966),
     ),
     accent = Color(0xFFFFCC66),
     accent2 = Color(0xFF99CCFF),
@@ -79,7 +79,7 @@ val Century25 = LcarsStyle(
     nav = listOf(Color(0xFF5B8FD6), Color(0xFFE8A04A), Color(0xFF8FB4E8), Color(0xFFC5523F)),
     sidebar = listOf(
         Color(0xFF5B8FD6), Color(0xFFE8A04A), Color(0xFF8FB4E8),
-        Color(0xFFC5523F), Color(0xFF4F7FC0), Color(0xFFB07A3A),
+        Color(0xFFC5523F), Color(0xFF4F7FC0), Color(0xFF6FA8C8), Color(0xFFB07A3A),
     ),
     accent = Color(0xFFE8A04A),
     accent2 = Color(0xFF7FD0E8),
