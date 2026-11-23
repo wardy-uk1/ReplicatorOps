@@ -416,7 +416,7 @@ class MoonrakerClient(
 
         val slots = (0 until 4).map { i ->
             val info = filamentInfo.firstOrNull { it.i("index") == i } ?: filamentInfo.getOrNull(i)
-            val material = info?.s("filament_type")?.takeIf { it.isNotBlank() }
+            val material = filamentName(info)
                 ?: varText("filament_type_slot$i", "slot${i}_filament", "type_slot$i")
             val colour = info?.let { firstColour(it) } ?: varText("color_slot$i", "colour_slot$i", "slot${i}_color", "color_rgb_slot$i")
             // Q2C firmware keeps slotN = 1/0 in save_variables; QIDI Maker also reads box_inserted_N.
@@ -437,6 +437,19 @@ class MoonrakerClient(
             activeSlot = active?.takeIf { it in 0..3 },
         )
         return box to raw
+    }
+
+    /**
+     * Best name for a slot's filament: filament_str when it's a fuller name that includes
+     * the type (e.g. "PLA Silk"), otherwise filament_type ("PLA").
+     */
+    private fun filamentName(info: JsonObject?): String? {
+        val type = info?.s("filament_type")?.trim()?.takeIf { it.isNotBlank() }
+        val str = info?.s("filament_str")?.trim()?.takeIf { it.isNotBlank() && !FILAMENT_CODE.matches(it) }
+        return when {
+            str != null && (type == null || str.contains(type, ignoreCase = true)) -> str
+            else -> type ?: str
+        }
     }
 
     /** filament_info colour is an array like ["#FF362D"]; take the first entry. */
@@ -551,6 +564,8 @@ class MoonrakerClient(
 
     companion object {
         private val SLOT_KEY = Regex("slot_?[0-3]")
+        /** QIDI filament codes like QFA00 aren't display names. */
+        private val FILAMENT_CODE = Regex("^Q?[A-Z]{1,3}\\d{2,}$")
         val BASE_OBJECTS = setOf(
             "print_stats", "display_status", "virtual_sdcard", "extruder", "heater_bed",
             "fan", "gcode_move", "toolhead", "webhooks", "idle_timeout", "exclude_object",

@@ -262,6 +262,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch {
+            // When the printer's own filament type for a slot changes (set on the printer's
+            // screen, or a tag read), it replaces whatever was set in the app.
+            var last: List<String?>? = null
+            printer.map { p -> if (p.ready) p.box?.slots?.map { it.material } else null }
+                .distinctUntilChanged()
+                .collect { now ->
+                    if (now == null) return@collect
+                    val before = last
+                    if (before != null) now.forEachIndexed { i, m -> if (m != before.getOrNull(i)) clearSlotOverride(i) }
+                    last = now
+                }
+        }
+        viewModelScope.launch {
             // LCARS alert chirp when a print finishes or errors.
             printer.map { it.printState }.distinctUntilChanged().collect { st ->
                 when (st) {
@@ -458,7 +471,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             say("No filament in slot ${slot + 1}. Insert a spool to read its tag.")
             return
         }
-        gcode("SLOT_RFID_READ SLOT=slot$slot", "Reading tag in slot ${slot + 1}")
+        action("Reading tag in slot ${slot + 1}") {
+            client.gcode("SLOT_RFID_READ SLOT=slot$slot")
+            // The printer's reading is now the truth: drop any type/colour set in the app.
+            clearSlotOverride(slot)
+        }
+    }
+
+    /** Forget the app's own type/colour for a slot so the printer's report shows. */
+    private fun clearSlotOverride(slot: Int) {
+        if (slot !in _slotInfo.value) return
+        _slotInfo.update { it - slot }
+        stores.saveSlots(_slotInfo.value)
     }
 
     /** Write a slot colour where the Box firmware reads it: color_slotN = ['RRGGBB'] in save_variables. */
