@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.2.0-beta.7
+## 2.2.0-beta.7 · Stardate 202624.11
 - Fixed: the app closed as soon as you opened the Slicer (the calibration line under it had a bad number format)
 - Fixed: an object with a "%" in its name could close the app when selected on the Arrange panel
 
