@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.1.0-beta.3
+## 2.1.0-beta.3 · Stardate 202624.11
 - No more "Couldn't list files: timed out" after sending a print. The printer is slow to answer while it reads a file that has just arrived, so the app now waits, tries again and refreshes quietly. Only the Refresh button reports a real failure
 - Less work for the printer: the app only asks it to re-read a file once, for a file it has just sent, instead of for every file without a preview
 
