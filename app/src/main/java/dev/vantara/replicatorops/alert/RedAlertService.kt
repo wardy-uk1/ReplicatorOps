@@ -20,6 +20,7 @@ import dev.vantara.replicatorops.MainActivity
 import dev.vantara.replicatorops.R
 import dev.vantara.replicatorops.data.MoonrakerClient
 import dev.vantara.replicatorops.data.PrinterState
+import dev.vantara.replicatorops.data.NotificationIcon
 import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.data.ReplicationQueue
 import dev.vantara.replicatorops.widget.ReplicatorWidget
@@ -151,7 +152,7 @@ class RedAlertService : Service() {
 
     private fun watchNotification(w: Watch): Notification =
         NotificationCompat.Builder(this, CHANNEL_WATCH)
-            .setSmallIcon(R.drawable.ic_stat_replicator)
+            .setSmallIcon(NotificationIcon.of(Prefs(this).notificationIcon).res)
             .setContentTitle(w.title)
             .setContentText(w.text)
             .setContentIntent(openApp())
@@ -189,7 +190,7 @@ class RedAlertService : Service() {
     private fun postAlert(a: Alert, withNext: Boolean = false) {
         if (!canNotify()) return
         val n = NotificationCompat.Builder(this, if (a.severe) CHANNEL_RED else CHANNEL_DONE)
-            .setSmallIcon(R.drawable.ic_stat_replicator)
+            .setSmallIcon(NotificationIcon.of(Prefs(this).notificationIcon).res)
             .setContentTitle(a.title)
             .setContentText(a.text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(a.text))
@@ -211,7 +212,7 @@ class RedAlertService : Service() {
         val name = p.filename?.substringAfterLast('/')?.substringBeforeLast('.') ?: "Print"
         val text = if (image != null) "Layer 1 is down on $name. Check it looks right." else "Layer 1 is down on $name (no camera image)."
         val n = NotificationCompat.Builder(this, CHANNEL_LAYER)
-            .setSmallIcon(R.drawable.ic_stat_replicator)
+            .setSmallIcon(NotificationIcon.of(Prefs(this).notificationIcon).res)
             .setContentTitle("First layer complete")
             .setContentText(text)
             .setContentIntent(openApp())

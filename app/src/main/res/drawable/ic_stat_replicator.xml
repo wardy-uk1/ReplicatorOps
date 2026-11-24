@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status-bar icon: a Starfleet-style delta over a replicator pad. -->
+<!-- Status-bar icon: replicator nozzle laying a drop on the bed. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,2 L18,16 L12,12.5 L6,16 Z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M4,19 L20,19 L20,22 L4,22 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M4.2,3 H19.8 L16.2,10.2 H7.8 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M10.2,10.2 h3.6 v3.6 h-3.6 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M10.2,17.4 a1.8,1.8 0 1,0 3.6,0 a1.8,1.8 0 1,0 -3.6,0 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M4.5,21 h15 a0.9,0.9 0 0 1 0,1.8 h-15 a0.9,0.9 0 0 1 0,-1.8 Z" />
 </vector>

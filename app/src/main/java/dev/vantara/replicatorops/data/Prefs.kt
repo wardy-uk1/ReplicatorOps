@@ -76,6 +76,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("chirps", true)
         set(v) = sp.edit().putBoolean("chirps", v).apply()
 
+    /** Symbol shown in notifications: replicator, gear, elbow or chip (see NotificationIcon). */
+    var notificationIcon: String
+        get() = sp.getString("notification_icon", "replicator") ?: "replicator"
+        set(v) = sp.edit().putString("notification_icon", v).apply()
+
     /** Last version whose Captain's Log entry the user has acknowledged. */
     var lastSeenVersion: String
         get() = sp.getString("last_seen_version", "") ?: ""

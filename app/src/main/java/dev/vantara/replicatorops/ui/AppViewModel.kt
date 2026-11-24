@@ -7,6 +7,7 @@ import dev.vantara.replicatorops.data.Connection
 import dev.vantara.replicatorops.data.Endpoint
 import dev.vantara.replicatorops.data.FileMeta
 import dev.vantara.replicatorops.data.SlicedMetaStore
+import dev.vantara.replicatorops.data.NotificationIcon
 import dev.vantara.replicatorops.data.GcodeFile
 import dev.vantara.replicatorops.data.HistoryJob
 import dev.vantara.replicatorops.data.SlotInfo
@@ -427,6 +428,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setStyle(id: String) {
         prefs.style = id
         _style.value = styleFor(id)
+    }
+
+    private val _notificationIcon = MutableStateFlow(NotificationIcon.of(prefs.notificationIcon))
+    val notificationIcon: StateFlow<NotificationIcon> = _notificationIcon.asStateFlow()
+    fun setNotificationIcon(icon: NotificationIcon) {
+        prefs.notificationIcon = icon.id
+        _notificationIcon.value = icon
+        // Redraw any notification that's showing now with the new symbol.
+        RedAlertService.sync(getApplication())
     }
 
     fun setChirps(on: Boolean) {

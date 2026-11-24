@@ -1,5 +1,17 @@
 package dev.vantara.replicatorops.ui.screens
 
+import dev.vantara.replicatorops.ui.lcars.Chirp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
+import dev.vantara.replicatorops.data.NotificationIcon
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -69,6 +81,27 @@ fun ConfigScreen(vm: AppViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LcarsChip("Chirps on", selected = chirps) { vm.setChirps(true) }
             LcarsChip("Chirps off", selected = !chirps) { vm.setChirps(false) }
+        }
+        Spacer(Modifier.height(10.dp))
+        LcarsLabel("Notification symbol", color = s.accent2, size = 13.sp)
+        val notifIcon by vm.notificationIcon.collectAsState()
+        Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            NotificationIcon.entries.forEach { icon ->
+                val on = icon == notifIcon
+                Column(
+                    Modifier.clip(RoundedCornerShape(12.dp)).clickable { Chirp.tap(); vm.setNotificationIcon(icon) }.padding(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier.size(48.dp).clip(CircleShape).background(if (on) s.accent else s.dim)
+                            .border(if (on) 2.dp else 0.dp, s.text, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(painterResource(icon.res), contentDescription = icon.label, tint = Color.White, modifier = Modifier.size(28.dp))
+                    }
+                    LcarsLabel(icon.label, color = if (on) s.accent else s.hint, size = 11.sp, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
         }
 
         LcarsSectionHeader("Sensor sweep", color = s.nav[0])

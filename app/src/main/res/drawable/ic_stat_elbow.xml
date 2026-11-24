@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon: LCARS elbow with two bars. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M2.4,21.6 V8.4 Q2.4,2.4 8.4,2.4 H21.6 V7.2 H9.6 Q7.2,7.2 7.2,9.6 V21.6 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M13.8,11.4 h6 a1.8,1.8 0 0 1 0,3.6 h-6 a1.8,1.8 0 0 1 0,-3.6 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M13.8,17.4 h2.4 a1.8,1.8 0 0 1 0,3.6 h-2.4 a1.8,1.8 0 0 1 0,-3.6 Z" />
+</vector>
