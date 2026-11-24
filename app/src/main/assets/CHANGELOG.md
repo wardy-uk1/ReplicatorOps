@@ -4,6 +4,9 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.0-beta.5
+- Choose the symbol shown in notifications: Replicator, Engineering gear, LCARS elbow or Isolinear chip (Config → LCARS System). Notifications already showing switch straight away
+
 ## 2.1.0-beta.4 · Stardate 202624.11
 - Status: tap the print's picture to see it large, then pinch to zoom
 - Thermal log keeps an hour. Drag sideways to scroll back through it, pick 5, 15, 30 or 60 minutes to see more at once, and double-tap to jump back to now. Times are marked along the bottom
