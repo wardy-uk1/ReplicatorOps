@@ -65,7 +65,7 @@ class RedAlertService : Service() {
         val prefs = Prefs(this)
         val ep = prefs.endpoint()
         // Must call startForeground promptly, even if we're about to stop.
-        startInForeground(watchNotification(lastWatch ?: Watch("Standing by", "Opening subspace link", null, false, false)))
+        startInForeground(watchNotification(lastWatch ?: Watch("Replicator standing by", "Opening subspace link", null, false, false)))
         if (!prefs.redAlert || ep == null) {
             stopSelf()
             return START_NOT_STICKY

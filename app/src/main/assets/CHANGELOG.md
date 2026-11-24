@@ -4,6 +4,9 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.2
+- The ongoing notification now reads "Replicator standing by" and "Monitoring subspace link to" your printer when it's idle, instead of mentioning Red Alert
+
 ## 2.1.1 · Stardate 202624.11
 - Fixed: the app closed straight after opening (or updating) while the printer was printing
 

@@ -72,7 +72,7 @@ object RedAlerts {
                 val verb = if (p.isPaused) "Paused" else "Replicating"
                 Watch("$verb $pct%$left", name ?: host, pct, p.isPaused, p.isPrinting)
             }
-            else -> Watch("Standing by", "Red Alert is watching $host", null, false, false)
+            else -> Watch("Replicator standing by", "Monitoring subspace link to $host", null, false, false)
         }
     }
 }
