@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.1.0-beta.5
+## 2.1.0-beta.5 · Stardate 202624.11
 - Choose the symbol shown in notifications: Replicator, Engineering gear, LCARS elbow or Isolinear chip (Config → LCARS System). Notifications already showing switch straight away
 
 ## 2.1.0-beta.4 · Stardate 202624.11
