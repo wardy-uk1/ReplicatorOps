@@ -423,6 +423,7 @@ private fun RoundKey(text: String, enabled: Boolean, onClick: () -> Unit) {
  * or more detailed print. Settings changes apply at once; turning and smoothing change the
  * model itself (shown in the viewscreen).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ComputerCard(vm: AppViewModel, plate: Plate, settings: SliceSettings, busy: Boolean) {
     val s = LocalLcars.current
