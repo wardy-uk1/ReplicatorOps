@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.1.0-beta.9
+## 2.1.0-beta.9 · Stardate 202624.11
 - Computer voice (Config): choose which of your phone's voices speaks the computer's replies, set a lower "computer" pitch and a measured pace, and a short chirp before each reply. Tap a voice to hear it
 - Failure spotter: while Red Alert is on, the camera is checked every 20 seconds during a print, on the phone. If the picture suddenly looks like spaghetti or a part come loose, you get a Red Alert with the photo and a Pause button. Choose Low, Medium or High sensitivity in Config → Red Alert
 
