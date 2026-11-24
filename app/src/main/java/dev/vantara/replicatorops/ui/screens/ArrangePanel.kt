@@ -145,7 +145,7 @@ fun ArrangePanel(vm: AppViewModel, plate: Plate, enabled: Boolean) {
 
     if (sel != null) {
         Spacer(Modifier.height(6.dp))
-        LcarsLabel("${sel.name} · %.0f° · %d%%".format(sel.rotation, (sel.scale * 100).roundToInt()), color = s.accent, size = 15.sp, bold = true)
+        LcarsLabel(sel.name + " · %.0f° · %d%%".format(sel.rotation, (sel.scale * 100).roundToInt()), color = s.accent, size = 15.sp, bold = true)
         FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             LcarsButton("⟲ 15°", color = s.nav[1], height = 34.dp, enabled = enabled) { vm.turnObject(sel.id, 15f) }
             LcarsButton("⟳ 15°", color = s.nav[1], height = 34.dp, enabled = enabled) { vm.turnObject(sel.id, -15f) }

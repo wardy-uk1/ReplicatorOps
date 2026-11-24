@@ -585,7 +585,7 @@ private fun PresetsRow(vm: AppViewModel, plate: Plate, settings: SliceSettings, 
 private fun CalibrationSection(vm: AppViewModel, settings: SliceSettings, enabled: Boolean) {
     val s = LocalLcars.current
     val p by vm.printer.collectAsState()
-    Section("Calibration prints", "Flow ${settings.flow}% · PA ${settings.pressureAdvance?.let { "%.3f".format(it) } ?: "printer"} · retraction %.1f mm".format(settings.retraction), s.nav[0]) {
+    Section("Calibration prints", "Flow ${settings.flow}% · PA ${settings.pressureAdvance?.let { "%.3f".format(it) } ?: "printer"} · retraction ${"%.1f".format(settings.retraction)} mm", s.nav[0]) {
         LcarsLabel("Uses the ${settings.filament} settings above (${settings.nozzleTemp}° / ${settings.bedTemp}°). Print a test, then tap the best result.",
             color = s.hint, size = 12.sp, maxLines = 3)
         @Composable
