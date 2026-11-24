@@ -4,6 +4,9 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.2.0-beta.1
+- Fixed: the app closed straight after opening (or updating) while the printer was printing
+
 ## 2.1.0 · Stardate 202624.11
 - Alert conditions: the whole app turns yellow or red, with a banner saying why and an Acknowledge button. Yellow: you paused, a heater is slow, the Box is damp. Red: the print failed or paused itself, or the printer reported an error. Double red: Klipper shut down (e.g. a heater fault) or the printer was lost mid-print. The app flashes and sounds a klaxon, which can sound through Do Not Disturb (Config → Red Alert)
 - Failure spotter: checks the camera during prints, on the phone, and raises Red Alert with the photo and a Pause button if it looks like spaghetti or a loose part
