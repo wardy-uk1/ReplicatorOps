@@ -61,6 +61,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -334,7 +335,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             printer.map { it.connection == Connection.CONNECTED }.distinctUntilChanged().collect { online ->
                 if (online) {
-                    refreshFiles()
+                    refreshFiles(quiet = true)
                     runCatching { client.temperatureStore() }.onSuccess { all ->
                         _temps.value = all.filterIndexed { i, _ -> i % 2 == 0 }.takeLast(TEMP_SAMPLES)
                     }
@@ -345,7 +346,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
-        viewModelScope.launch { client.fileListChanged.collect { refreshFiles() } }
+        // The printer says its files changed (e.g. a file just arrived): wait for it to settle,
+        // then refresh quietly. A burst of changes only refreshes once.
+        viewModelScope.launch {
+            client.fileListChanged.collectLatest {
+                delay(1500)
+                refreshFiles(quiet = true)
+            }
+        }
         viewModelScope.launch {
             client.alerts.collect { a ->
                 if (_printerAlert.value?.raw != a.raw) Chirp.alert()
@@ -716,12 +724,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Files ---------------------------------------------------------------
 
-    fun refreshFiles() {
+    /**
+     * Reloads the file list. The printer can take a while to answer just after a file
+     * arrives (it's reading the new file), so it tries a few times before saying so;
+     * [quiet] refreshes (after sending a file) never pop up an error.
+     */
+    fun refreshFiles(quiet: Boolean = false) {
         viewModelScope.launch {
             _filesLoading.value = true
-            runCatching { client.listFiles() }
-                .onSuccess { _files.value = it }
-                .onFailure { say("Couldn't list files: ${it.message}") }
+            var error: Throwable? = null
+            for (wait in listOf(0L, 3000L, 8000L)) {
+                delay(wait)
+                val r = runCatching { client.listFiles() }
+                r.onSuccess { _files.value = it; error = null }
+                if (r.isSuccess) break
+                error = r.exceptionOrNull()
+            }
+            if (error != null && !quiet) say("Couldn't list files: ${error?.message}")
             _filesLoading.value = false
         }
     }
@@ -739,9 +758,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * asked to read the file again, and anything still missing is filled in from what the
      * app saved when it sliced and sent the file itself.
      */
-    private suspend fun fetchMeta(path: String): FileMeta? {
+    private suspend fun fetchMeta(path: String, rescan: Boolean = false): FileMeta? {
         var m = runCatching { client.metadata(path) }.getOrNull()
-        if (m == null || m.thumbnailUrl == null || m.estimatedSeconds == null) {
+        // A rescan is slow on the printer, so it's only asked for once, for a file just sent.
+        if (rescan && (m == null || m.thumbnailUrl == null || m.estimatedSeconds == null)) {
             runCatching { client.metascan(path) }.getOrNull()?.let { m = it }
         }
         val local = slicedMeta.read(path) ?: return m
@@ -1111,13 +1131,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // file, and keep it in case the printer can't read it.
                     val known = seed?.let { slicedMeta.save(path, it) ?: it }
                     known?.let { m -> _meta.update { it + (path to m) } }
-                    refreshFiles()
+                    refreshFiles(quiet = true)
                     select(Screen.FILES)
                     _openFile.value = GcodeFile(path, System.currentTimeMillis() / 1000.0, size)
                     // Moonraker reads the file's metadata just after upload; keep asking until it has.
-                    for (wait in listOf(1500L, 3000L, 6000L)) {
+                    for ((i, wait) in listOf(2000L, 4000L, 8000L, 12000L).withIndex()) {
                         delay(wait)
-                        val fresh = fetchMeta(path) ?: continue
+                        val fresh = fetchMeta(path, rescan = i == 3) ?: continue
                         _meta.update { it + (path to fresh) }
                         if (fresh.estimatedSeconds != null && fresh.thumbnailUrl != null) break
                     }

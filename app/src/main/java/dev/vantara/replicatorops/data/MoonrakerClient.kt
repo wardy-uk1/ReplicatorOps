@@ -506,7 +506,8 @@ class MoonrakerClient(
     // ---- Higher-level helpers --------------------------------------------
 
     suspend fun listFiles(): List<GcodeFile> {
-        val result = call("server.files.list", buildJsonObject { put("root", "gcodes") })
+        // The printer can be slow to answer while it reads a file that has just arrived.
+        val result = call("server.files.list", buildJsonObject { put("root", "gcodes") }, timeoutMs = 30_000)
         return (result as? JsonArray ?: JsonArray(emptyList())).mapNotNull { el ->
             val f = el as? JsonObject ?: return@mapNotNull null
             val path = f.s("path") ?: f.s("filename") ?: return@mapNotNull null
@@ -520,7 +521,7 @@ class MoonrakerClient(
 
     /** Asks Moonraker to read the file's metadata again now (e.g. if it was busy when the file arrived). */
     suspend fun metascan(path: String): FileMeta =
-        parseMeta(path, call("server.files.metascan", buildJsonObject { put("filename", path) }).jsonObject)
+        parseMeta(path, call("server.files.metascan", buildJsonObject { put("filename", path) }, timeoutMs = 30_000).jsonObject)
 
     private fun parseMeta(path: String, m: JsonObject): FileMeta {
         val ep = endpoint ?: throw IOException("Not connected")
