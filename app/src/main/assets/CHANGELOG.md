@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.1.0-beta.2
+## 2.1.0-beta.2 · Stardate 202624.11
 - Load pattern: the file name stays on one line. Long names shrink to fit instead of leaving a letter or two on a second line
 
 ## 2.1.0-beta.1 · Stardate 202624.11
