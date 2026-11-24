@@ -410,13 +410,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             printer.map { it.filename }.distinctUntilChanged().collect { f -> if (!f.isNullOrBlank()) loadMeta(f, force = true) }
         }
-        viewModelScope.launch { printer.collect { refreshAlert() } }
-        viewModelScope.launch { while (true) { delay(10_000); refreshAlert() } }
-        viewModelScope.launch {
-            // Live print view: read the file being printed once per print.
-            printer.map { p -> p.filename?.takeIf { p.printState == "printing" || p.printState == "paused" } }
-                .distinctUntilChanged().collect { followPrintFile(it) }
-        }
         viewModelScope.launch {
             // Sample temperatures for the thermal log.
             while (true) {
@@ -1696,6 +1689,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun dismissRetrieve() { _retrieveState.value = RetrieveState.Idle }
+
+    // Started last, once every property above exists: these run straight away when the
+    // printer is already printing (collectors on Main.immediate start before init returns).
+    init {
+        viewModelScope.launch { printer.collect { refreshAlert() } }
+        viewModelScope.launch { while (true) { delay(10_000); refreshAlert() } }
+        viewModelScope.launch {
+            // Live print view: read the file being printed once per print.
+            printer.map { p -> p.filename?.takeIf { p.printState == "printing" || p.printState == "paused" } }
+                .distinctUntilChanged().collect { followPrintFile(it) }
+        }
+    }
 
     companion object {
         const val TEMP_SAMPLES = 1800  // an hour at one sample every 2 s
