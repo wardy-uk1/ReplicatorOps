@@ -107,6 +107,7 @@ class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        dev.vantara.replicatorops.data.CrashLog.install(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (savedInstanceState == null) handleIncoming(intent)
@@ -120,7 +121,10 @@ class MainActivity : ComponentActivity() {
                 while (alert.condition == dev.vantara.replicatorops.alert.Condition.DOUBLE_RED) { delay(500); value = !value }
                 value = false
             }
-            LcarsTheme(if (showing) alertStyle(style, alert.condition, flash) else style) { ScaledToScreen { App(vm) } }
+            LcarsTheme(if (showing) alertStyle(style, alert.condition, flash) else style) {
+                ScaledToScreen { App(vm) }
+                CrashReport()
+            }
         }
     }
 
@@ -401,4 +405,36 @@ private fun AlertBanner(vm: AppViewModel) {
         }
         LcarsButton("Acknowledge", color = Color.Black.copy(alpha = 0.25f), height = 34.dp) { vm.acknowledgeAlert() }
     }
+}
+
+/** After a crash, shows what went wrong so it can be shared (nothing is sent automatically). */
+@Composable
+private fun CrashReport() {
+    val s = LocalLcars.current
+    val context = LocalContext.current
+    var log by remember { mutableStateOf(dev.vantara.replicatorops.data.CrashLog.read(context)) }
+    val text = log ?: return
+    fun close() { dev.vantara.replicatorops.data.CrashLog.clear(context); log = null }
+    AlertDialog(
+        onDismissRequest = { close() },
+        containerColor = Color.Black,
+        modifier = Modifier.border(2.dp, s.alert, RoundedCornerShape(24.dp)),
+        title = { LcarsLabel("Malfunction report", color = s.alert, size = 20.sp, bold = true) },
+        text = {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                LcarsLabel("Replicator Ops closed unexpectedly last time. Share this report so it can be fixed.", color = s.text, size = 13.sp, maxLines = 3)
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.Text(text, color = s.hint, fontSize = 10.sp, lineHeight = 12.sp)
+            }
+        },
+        confirmButton = {
+            LcarsButton("Share", color = s.accent) {
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                    .putExtra(Intent.EXTRA_SUBJECT, "Replicator Ops crash report")
+                runCatching { context.startActivity(Intent.createChooser(send, "Share crash report")) }
+                close()
+            }
+        },
+        dismissButton = { LcarsButton("Dismiss", color = s.frameAlt) { close() } },
+    )
 }
