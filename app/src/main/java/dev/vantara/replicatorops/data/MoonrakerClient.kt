@@ -337,6 +337,7 @@ class MoonrakerClient(
             printState = stats.s("state") ?: prev.printState,
             filename = stats.s("filename")?.takeIf { it.isNotBlank() },
             progress = displayProgress?.takeIf { it > 0 } ?: sdProgress ?: 0.0,
+            filePosition = (sd?.get("file_position") as? JsonPrimitive)?.longOrNull ?: prev.filePosition,
             printDuration = stats.d("print_duration") ?: 0.0,
             totalDuration = stats.d("total_duration") ?: 0.0,
             filamentUsedMm = stats.d("filament_used") ?: 0.0,

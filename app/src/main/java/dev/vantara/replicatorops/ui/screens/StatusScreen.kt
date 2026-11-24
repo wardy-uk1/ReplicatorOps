@@ -53,6 +53,7 @@ fun StatusScreen(vm: AppViewModel) {
     var confirmCancel by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
     var showThumb by remember { mutableStateOf(false) }
+    var showLive by remember { mutableStateOf(false) }
     var showTargets by remember { mutableStateOf(false) }
     var confirmNext by remember { mutableStateOf(false) }
 
@@ -136,6 +137,7 @@ fun StatusScreen(vm: AppViewModel) {
             Spacer(Modifier.height(8.dp))
             LcarsProgress(p.progress)
             Spacer(Modifier.height(8.dp))
+            LivePrintView(vm, p, toolColours(m)) { showLive = true }
         } else {
             Spacer(Modifier.height(10.dp))
         }
@@ -176,6 +178,22 @@ fun StatusScreen(vm: AppViewModel) {
     }
 
     if (showCamera) CameraDialog(vm) { showCamera = false }
+
+    if (showLive) {
+        val st by vm.printLayers.collectAsState()
+        val ready = st as? AppViewModel.LayersState.Ready
+        val live = ready?.layers?.let { l -> val i = l.layerAt(p.filePosition); i to (l.layers.getOrNull(i)?.doneAt(p.filePosition) ?: 0) }
+        LayerPreviewDialog(
+            title = p.filename.orEmpty().substringAfterLast('/').removeSuffix(".gcode"),
+            layers = ready?.layers,
+            loading = (st as? AppViewModel.LayersState.Loading)?.what ?: (st as? AppViewModel.LayersState.Failed)?.message,
+            onDismiss = { showLive = false },
+            startLayer = live?.first ?: 0,
+            toolColours = toolColours(p.filename?.let { meta[it] }),
+            live = live,
+            nozzle = p.position.takeIf { it.size >= 2 }?.let { androidx.compose.ui.geometry.Offset(it[0].toFloat(), it[1].toFloat()) },
+        )
+    }
 
     // Tap the print's picture to see it large (pinch to zoom).
     val thumbUrl = p.filename?.let { meta[it]?.thumbnailUrl }
@@ -244,5 +262,46 @@ fun stateColor(p: PrinterState): Color {
         p.isPrinting -> s.accent
         p.isPaused -> s.nav[0]
         else -> s.accent2
+    }
+}
+
+
+/** Colours of the file's filaments (by tool number), for "By filament" in the layer views. */
+private fun toolColours(m: dev.vantara.replicatorops.data.FileMeta?): List<Color> =
+    m?.filamentColors?.map { c -> c?.let { Color(it) } ?: Color(0xFFFFCC66) }.orEmpty()
+
+/**
+ * Live print view: the layer being printed seen from above, filling in as the printer
+ * reads the file, with the nozzle marked. Tap to look through every layer.
+ */
+@Composable
+private fun LivePrintView(vm: AppViewModel, p: dev.vantara.replicatorops.data.PrinterState, colours: List<Color>, onOpen: () -> Unit) {
+    val s = LocalLcars.current
+    val st by vm.printLayers.collectAsState()
+    when (val x = st) {
+        is AppViewModel.LayersState.Ready -> {
+            val l = x.layers
+            val i = l.layerAt(p.filePosition)
+            val done = l.layers.getOrNull(i)?.doneAt(p.filePosition) ?: 0
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LayerCanvas(
+                    l, i, Modifier.size(150.dp).clickable { Chirp.tap(); onOpen() },
+                    done = done,
+                    colours = if (colours.size > 1) LayerColours.FILAMENT else LayerColours.TYPE,
+                    toolColours = colours,
+                    nozzle = p.position.takeIf { it.size >= 2 }?.let { androidx.compose.ui.geometry.Offset(it[0].toFloat(), it[1].toFloat()) },
+                )
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    LcarsLabel("Live path", color = s.nav[1], size = 14.sp, bold = true)
+                    LcarsLabel("Layer ${i + 1} / ${l.layers.size}", color = s.text, size = 15.sp)
+                    l.layers.getOrNull(i)?.let { LcarsLabel("%.2f mm · %d%% of layer".format(it.z, if (it.count > 0) done * 100 / it.count else 0), color = s.accent2, size = 12.sp) }
+                    LcarsLabel("Tap to look through the layers", color = s.hint, size = 11.sp, maxLines = 2)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        is AppViewModel.LayersState.Loading -> { LcarsLabel(x.what, color = s.hint, size = 12.sp); Spacer(Modifier.height(6.dp)) }
+        else -> Unit
     }
 }

@@ -235,11 +235,26 @@ private fun ActionBar(vm: AppViewModel, state: SliceState, model: Pair<ModelFile
                 )
                 LcarsLabel("Pattern ready · " + bits.joinToString(" · "), color = s.nav[1], size = 14.sp)
                 Spacer(Modifier.height(6.dp))
+                var preview by remember { mutableStateOf(false) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LcarsButton("Send to printer", color = s.accent, height = 40.dp, enabled = p.online) { vm.sendSliced() }
+                    LcarsButton("Layers", color = s.nav[2], height = 40.dp) { vm.loadPreview(state.gcode); preview = true }
                     LcarsButton("Slice again", color = s.nav[1], height = 40.dp) { vm.startSlice() }
                 }
                 if (!p.online) LcarsLabel("Printer offline: connect in Config to send it.", color = s.alert, size = 11.sp)
+                if (preview) {
+                    val pv by vm.preview.collectAsState()
+                    val pl = state.plate
+                    LayerPreviewDialog(
+                        title = "Layer preview",
+                        layers = (pv as? AppViewModel.LayersState.Ready)?.layers,
+                        loading = (pv as? AppViewModel.LayersState.Loading)?.what ?: (pv as? AppViewModel.LayersState.Failed)?.message,
+                        onDismiss = { preview = false },
+                        toolColours = (0..(pl.usedFilaments.maxOrNull() ?: 0)).map { t ->
+                            pl.filaments.getOrNull(t)?.color?.let { Color(it) } ?: s.nav[t % s.nav.size]
+                        },
+                    )
+                }
             }
             else -> LcarsButton("Slice", color = s.accent, height = 42.dp, enabled = fits, modifier = Modifier.fillMaxWidth()) { vm.startSlice() }
         }

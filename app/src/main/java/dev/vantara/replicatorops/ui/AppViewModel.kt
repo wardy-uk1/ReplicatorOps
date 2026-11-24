@@ -31,6 +31,7 @@ import dev.vantara.replicatorops.slicer.ModelReader
 import dev.vantara.replicatorops.slicer.SliceSettings
 import dev.vantara.replicatorops.slicer.SliceState
 import dev.vantara.replicatorops.slicer.SlicerEngine
+import dev.vantara.replicatorops.slicer.GcodeLayers
 import dev.vantara.replicatorops.slicer.SlicePreset
 import dev.vantara.replicatorops.data.ToolNeed
 import dev.vantara.replicatorops.slicer.Arrange
@@ -369,6 +370,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             printer.map { it.filename }.distinctUntilChanged().collect { f -> if (!f.isNullOrBlank()) loadMeta(f, force = true) }
+        }
+        viewModelScope.launch {
+            // Live print view: read the file being printed once per print.
+            printer.map { p -> p.filename?.takeIf { p.printState == "printing" || p.printState == "paused" } }
+                .distinctUntilChanged().collect { followPrintFile(it) }
         }
         viewModelScope.launch {
             // Sample temperatures for the thermal log.
@@ -1401,6 +1407,56 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun chooseSlot(tool: Int, slot: Int) { _slotChoice.update { it + (tool to slot) } }
+
+    // ---- Layer preview (sliced file) and live print view (file being printed) ----------
+
+    sealed interface LayersState {
+        data object None : LayersState
+        data class Loading(val what: String) : LayersState
+        data class Ready(val key: String, val layers: GcodeLayers) : LayersState
+        data class Failed(val message: String) : LayersState
+    }
+
+    private val _preview = MutableStateFlow<LayersState>(LayersState.None)
+    val preview: StateFlow<LayersState> = _preview.asStateFlow()
+
+    /** Reads the sliced G-code into layers for the preview. */
+    fun loadPreview(file: File) {
+        val key = file.path + ":" + file.lastModified()
+        if ((_preview.value as? LayersState.Ready)?.key == key) return
+        _preview.value = LayersState.Loading("Reading the layers…")
+        viewModelScope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { file.inputStream().use { GcodeLayers.read(it) } } }
+            _preview.value = r.fold({ LayersState.Ready(key, it) }, { LayersState.Failed(it.message ?: "Couldn't read the G-code") })
+        }
+    }
+
+    private val _printLayers = MutableStateFlow<LayersState>(LayersState.None)
+    /** The file being printed, read into layers (downloaded once per print). */
+    val printLayers: StateFlow<LayersState> = _printLayers.asStateFlow()
+    private var printLayersJob: kotlinx.coroutines.Job? = null
+
+    private fun followPrintFile(path: String?) {
+        val ready = _printLayers.value
+        if (path == null) { printLayersJob?.cancel(); _printLayers.value = LayersState.None; return }
+        if (ready is LayersState.Ready && ready.key == path) return
+        if (ready is LayersState.Loading && printLayersJob?.isActive == true) return
+        val ep = client.endpoint ?: return
+        printLayersJob?.cancel()
+        _printLayers.value = LayersState.Loading("Downloading the print's path…")
+        printLayersJob = viewModelScope.launch {
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    val req = okhttp3.Request.Builder().url(ep.gcodeFileUrl(path)).apply { ep.apiKey?.let { header("X-Api-Key", it) } }.build()
+                    http.newBuilder().readTimeout(120, java.util.concurrent.TimeUnit.SECONDS).build().newCall(req).execute().use { resp ->
+                        if (!resp.isSuccessful) throw java.io.IOException("The printer refused the file (${resp.code})")
+                        GcodeLayers.read(resp.body!!.byteStream())
+                    }
+                }
+            }
+            _printLayers.value = r.fold({ LayersState.Ready(path, it) }, { LayersState.Failed(it.message ?: "Couldn't read the print file") })
+        }
+    }
 
     fun startSlice() = slicer?.slice(_sliceSettings.value)
     fun cancelSlice() = slicer?.cancel()

@@ -64,6 +64,8 @@ data class PrinterState(
     val printState: String = "standby",
     val filename: String? = null,
     val progress: Double = 0.0,
+    /** How far through the file the printer has read (bytes), for the live print view. */
+    val filePosition: Long = 0L,
     val printDuration: Double = 0.0,
     val totalDuration: Double = 0.0,
     val filamentUsedMm: Double = 0.0,
