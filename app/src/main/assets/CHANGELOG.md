@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.1.0-beta.8
+## 2.1.0-beta.8 · Stardate 202624.11
 - Alert conditions: the whole app turns yellow or red, with a banner saying why and an Acknowledge button
   - Yellow alert: you paused the print, a heater is struggling to reach temperature, or the QIDI Box is damp
   - Red alert: the print failed or paused itself (e.g. filament runout), or the printer reported an error
