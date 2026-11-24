@@ -4,6 +4,14 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.0-beta.8
+- Alert conditions: the whole app turns yellow or red, with a banner saying why and an Acknowledge button
+  - Yellow alert: you paused the print, a heater is struggling to reach temperature, or the QIDI Box is damp
+  - Red alert: the print failed or paused itself (e.g. filament runout), or the printer reported an error
+  - Double red alert: Klipper shut down (e.g. a heater fault or thermal runaway) or the printer was lost mid-print. The app flashes and sounds a klaxon, which can sound through Do Not Disturb on the alarm volume (Config → Red Alert, with a Test button)
+- Calibration prints in the Slicer: flow, pressure advance and retraction tests for the filament in your settings. Print one, tap the best result, and it goes into the settings (save a preset to keep it per filament)
+- Live print view and layer preview no longer count the purge lines as a layer
+
 ## 2.1.0-beta.7 · Stardate 202624.11
 - Layer preview: after slicing, tap Layers to step through the print layer by layer, coloured by type (walls, infill, support…) or by filament, before you send it
 - Live print view on Status: the layer being printed, seen from above, fills in as the printer goes, with the nozzle marked. Tap it to look through every layer; "Now" jumps back to the current one. Works for files from any slicer

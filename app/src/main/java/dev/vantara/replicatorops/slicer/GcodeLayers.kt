@@ -80,7 +80,13 @@ class GcodeLayers private constructor(val layers: List<Layer>) {
                 val c0 = raw[0]
                 if (c0 == ';') {
                     when {
-                        raw.startsWith(";LAYER:") || raw.startsWith(";LAYER_CHANGE") -> { explicitLayers = true; newLayer(lineStart) }
+                        raw.startsWith(";LAYER:") || raw.startsWith(";LAYER_CHANGE") -> {
+                            if (!explicitLayers) {
+                                // Anything before the first layer (purge lines in the start G-code) isn't a layer.
+                                pending = false; xs = Seg(); layerStart = lineStart; layerZ = z
+                                explicitLayers = true
+                            } else newLayer(lineStart)
+                        }
                         raw.startsWith(";TYPE:") -> { flushPending(lineStart); kind = kindOf(raw.substring(6)) }
                         raw.startsWith("; FEATURE:") -> { flushPending(lineStart); kind = kindOf(raw.substring(10)) }
                         raw.startsWith("; Z_HEIGHT:") || raw.startsWith(";Z:") -> raw.substringAfter(':').trim().toFloatOrNull()?.let { if (xs.size == 0) layerZ = it }

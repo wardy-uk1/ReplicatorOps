@@ -110,6 +110,16 @@ class RedAlertService : Service() {
                         layerShotTaken = true
                         scope.launch { postFirstLayer(now) }
                     }
+                    // Yellow and double red alerts (red comes from the transitions above).
+                    val status = monitor.update(now, System.currentTimeMillis())
+                    when (status.condition) {
+                        Condition.YELLOW, Condition.DOUBLE_RED -> if (status.reason != lastCondition) {
+                            lastCondition = status.reason
+                            postCondition(status)
+                        }
+                        Condition.GREEN -> lastCondition = null
+                        else -> Unit
+                    }
                     // Keep the last ready state so a short link drop doesn't hide a transition.
                     if (now.ready || prev == null) prev = now
                     updateWatch(now)
@@ -204,6 +214,28 @@ class RedAlertService : Service() {
         NotificationManagerCompat.from(this).notify(ALERT_ID, n)
     }
 
+    private val monitor = AlertMonitor()
+    private var lastCondition: String? = null
+
+    /** Yellow alert (quiet heads-up) or double red alert (loud, can sound through Do Not Disturb). */
+    private fun postCondition(st: AlertStatus) {
+        val double = st.condition == Condition.DOUBLE_RED
+        if (double) AlertSound.play(this, throughDnd = Prefs(this).alertThroughDnd)
+        if (!canNotify()) return
+        val n = NotificationCompat.Builder(this, if (double) CHANNEL_DOUBLE_RED else CHANNEL_YELLOW)
+            .setSmallIcon(NotificationIcon.of(Prefs(this).notificationIcon).res)
+            .setContentTitle(if (double) "DOUBLE RED ALERT" else "Yellow alert")
+            .setContentText(st.reason)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(st.reason))
+            .setContentIntent(openApp())
+            .setAutoCancel(true)
+            .setPriority(if (double) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(if (double) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_STATUS)
+            .setColor(if (double) 0xFFFF2222.toInt() else 0xFFFFCC00.toInt())
+            .build()
+        NotificationManagerCompat.from(this).notify(if (double) DOUBLE_ID else YELLOW_ID, n)
+    }
+
     private suspend fun postFirstLayer(p: PrinterState) {
         if (!canNotify()) return
         val key = Prefs(this).apiKey.ifBlank { null }
@@ -242,6 +274,10 @@ class RedAlertService : Service() {
         private const val LAYER_ID = 1703
         private const val WATCH_ID = 1701
         private const val ALERT_ID = 1702
+        private const val YELLOW_ID = 1704
+        private const val DOUBLE_ID = 1705
+        const val CHANNEL_YELLOW = "yellow_alert"
+        const val CHANNEL_DOUBLE_RED = "double_red_alert"
         private const val ACTION_PAUSE = "dev.vantara.replicatorops.PAUSE"
         private const val ACTION_RESUME = "dev.vantara.replicatorops.RESUME"
         private const val ACTION_NEXT = "dev.vantara.replicatorops.NEXT"
@@ -262,6 +298,14 @@ class RedAlertService : Service() {
                     },
                     NotificationChannel(CHANNEL_LAYER, "First-layer watch", NotificationManager.IMPORTANCE_DEFAULT).apply {
                         description = "Camera snapshot when the second layer starts"
+                    },
+                    NotificationChannel(CHANNEL_YELLOW, "Yellow alert", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                        description = "Worth a look: you paused a print, a heater is slow, the Box is damp"
+                    },
+                    NotificationChannel(CHANNEL_DOUBLE_RED, "Double red alert", NotificationManager.IMPORTANCE_HIGH).apply {
+                        description = "Critical: Klipper shut down (e.g. heater fault) or the printer was lost mid-print"
+                        enableVibration(true)
+                        setSound(null, null)  // the app plays its own klaxon (see Config for Do Not Disturb)
                     },
                 )
             )

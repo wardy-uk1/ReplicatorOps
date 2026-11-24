@@ -70,6 +70,21 @@ fun RedAlertSection(vm: AppViewModel) {
         }
         LcarsChip("Offline", selected = !on) { vm.setRedAlert(false) }
     }
+    Spacer(Modifier.height(10.dp))
+    LcarsLabel(
+        "Alert levels: Yellow (you paused, a heater is slow, the Box is damp), Red (print failed or paused itself, printer error) " +
+            "and Double red (Klipper shut down, e.g. a heater fault, or the printer lost mid-print). The whole app turns colour until you acknowledge.",
+        color = s.hint, size = 12.sp, maxLines = 6,
+    )
+    val dnd by vm.alertThroughDnd.collectAsState()
+    Spacer(Modifier.height(6.dp))
+    LcarsLabel("Double red alert sounds through Do Not Disturb (alarm volume)", color = s.accent2, size = 13.sp, maxLines = 2)
+    Spacer(Modifier.height(4.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LcarsChip("On", selected = dnd) { vm.setAlertThroughDnd(true) }
+        LcarsChip("Off", selected = !dnd) { vm.setAlertThroughDnd(false) }
+        LcarsButton("Test", color = s.alert, height = 32.dp) { dev.vantara.replicatorops.alert.AlertSound.play(context, times = 2, throughDnd = dnd) }
+    }
     if (on) {
         val firstLayer by vm.firstLayer.collectAsState()
         Spacer(Modifier.height(10.dp))

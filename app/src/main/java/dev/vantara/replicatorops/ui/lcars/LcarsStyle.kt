@@ -111,6 +111,35 @@ val LcarsFont: FontFamily = FontFamily(
 
 val LocalLcars = staticCompositionLocalOf { Century24 }
 
+/**
+ * The whole interface in alert colours: yellow alert, red alert, and double red alert
+ * (which flashes between bright and dark red; [flash] picks the phase).
+ */
+fun alertStyle(base: LcarsStyle, condition: dev.vantara.replicatorops.alert.Condition, flash: Boolean = false): LcarsStyle {
+    fun c(v: Long) = Color(v)
+    return when (condition) {
+        dev.vantara.replicatorops.alert.Condition.YELLOW -> base.copy(
+            frame = c(0xFFFFCC00), frameAlt = c(0xFFCC9900),
+            nav = listOf(c(0xFFFFE066), c(0xFFFFCC33), c(0xFFE6B800), c(0xFFFFD966)),
+            sidebar = listOf(c(0xFFFFE066), c(0xFFFFCC33), c(0xFFE6B800), c(0xFFFFD966), c(0xFFFFF0A0), c(0xFFCCA300), c(0xFFFFDD55), c(0xFFE0B000)),
+            accent = c(0xFFFFE680), accent2 = c(0xFFFFF0B3), text = c(0xFFFFCC00), dim = c(0xFF3A3000), hint = c(0xFFEEE0B0),
+        )
+        dev.vantara.replicatorops.alert.Condition.RED, dev.vantara.replicatorops.alert.Condition.DOUBLE_RED -> {
+            val bright = condition == dev.vantara.replicatorops.alert.Condition.RED || !flash
+            base.copy(
+                frame = if (bright) c(0xFFDD2222) else c(0xFF770000),
+                frameAlt = if (bright) c(0xFF991111) else c(0xFF440000),
+                nav = listOf(c(0xFFFF5555), c(0xFFCC3333), c(0xFFFF7766), c(0xFFAA2222)),
+                sidebar = if (bright) listOf(c(0xFFFF5555), c(0xFFCC3333), c(0xFFFF7766), c(0xFFAA2222), c(0xFFFF8877), c(0xFFDD4444), c(0xFFFF6655), c(0xFFBB3333))
+                    else List(8) { c(0xFF551111) },
+                accent = c(0xFFFF6666), accent2 = c(0xFFFFAAAA), text = c(0xFFFF4444), dim = c(0xFF3A1010), hint = c(0xFFE8BBBB),
+                alert = c(0xFFFF2222),
+            )
+        }
+        else -> base
+    }
+}
+
 @Composable
 fun LcarsTheme(style: LcarsStyle, content: @Composable () -> Unit) {
     val scheme = darkColorScheme(

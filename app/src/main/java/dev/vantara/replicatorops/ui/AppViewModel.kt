@@ -31,6 +31,7 @@ import dev.vantara.replicatorops.slicer.ModelReader
 import dev.vantara.replicatorops.slicer.SliceSettings
 import dev.vantara.replicatorops.slicer.SliceState
 import dev.vantara.replicatorops.slicer.SlicerEngine
+import dev.vantara.replicatorops.slicer.Calibration
 import dev.vantara.replicatorops.slicer.GcodeLayers
 import dev.vantara.replicatorops.slicer.SlicePreset
 import dev.vantara.replicatorops.data.ToolNeed
@@ -60,6 +61,10 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import dev.vantara.replicatorops.data.Outline
 import dev.vantara.replicatorops.alert.RedAlertService
+import dev.vantara.replicatorops.alert.AlertSound
+import dev.vantara.replicatorops.alert.Condition
+import dev.vantara.replicatorops.alert.AlertStatus
+import dev.vantara.replicatorops.alert.AlertMonitor
 import dev.vantara.replicatorops.ui.lcars.Chirp
 import dev.vantara.replicatorops.ui.lcars.LcarsStyle
 import dev.vantara.replicatorops.ui.lcars.styleFor
@@ -317,6 +322,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val printerAlert: StateFlow<PrinterAlert?> = _printerAlert.asStateFlow()
     fun dismissPrinterAlert() { _printerAlert.value = null }
 
+    // ---- Alert condition (whole app turns yellow / red) -------------------------------
+
+    private val alertMonitor = AlertMonitor()
+    private val _alert = MutableStateFlow(AlertStatus(Condition.GREEN))
+    /** Current condition and why (green when all's well). */
+    val alert: StateFlow<AlertStatus> = _alert.asStateFlow()
+    private val _alertAck = MutableStateFlow<String?>(null)
+    /** The alert you acknowledged (colours go back to normal until something new happens). */
+    val alertAck: StateFlow<String?> = _alertAck.asStateFlow()
+    private val _alertThroughDnd = MutableStateFlow(prefs.alertThroughDnd)
+    val alertThroughDnd: StateFlow<Boolean> = _alertThroughDnd.asStateFlow()
+
+    fun setAlertThroughDnd(on: Boolean) { prefs.alertThroughDnd = on; _alertThroughDnd.value = on }
+
+    fun acknowledgeAlert() {
+        _alertAck.value = _alert.value.reason
+        alertMonitor.clearLatched()
+        _printerAlert.value = null
+        Chirp.confirm()
+    }
+
+    private fun refreshAlert() {
+        val st = alertMonitor.update(printer.value, System.currentTimeMillis())
+        val before = _alert.value
+        _alert.value = st
+        if (!st.active) _alertAck.value = null
+        // The background watch plays the klaxon when it's running; otherwise the app does.
+        if (st.condition == Condition.DOUBLE_RED && st.reason != before.reason && !prefs.redAlert) {
+            AlertSound.play(getApplication(), throughDnd = prefs.alertThroughDnd)
+        }
+    }
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages
 
@@ -366,11 +403,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             client.alerts.collect { a ->
                 if (_printerAlert.value?.raw != a.raw) Chirp.alert()
                 _printerAlert.value = a
+                alertMonitor.latch(Condition.RED, "${a.message} (${a.code})", System.currentTimeMillis())
+                refreshAlert()
             }
         }
         viewModelScope.launch {
             printer.map { it.filename }.distinctUntilChanged().collect { f -> if (!f.isNullOrBlank()) loadMeta(f, force = true) }
         }
+        viewModelScope.launch { printer.collect { refreshAlert() } }
+        viewModelScope.launch { while (true) { delay(10_000); refreshAlert() } }
         viewModelScope.launch {
             // Live print view: read the file being printed once per print.
             printer.map { p -> p.filename?.takeIf { p.printState == "printing" || p.printState == "paused" } }
@@ -838,7 +879,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Print control -------------------------------------------------------
 
-    fun pause() = action { client.call("printer.print.pause") }
+    fun pause() = action { alertMonitor.userPaused = true; client.call("printer.print.pause") }
     fun resume() = action { client.call("printer.print.resume") }
     fun cancel() = action("Print cancelled") { client.call("printer.print.cancel") }
     fun emergencyStop() = action("Emergency stop sent") { client.call("printer.emergency_stop") }
@@ -1456,6 +1497,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             _printLayers.value = r.fold({ LayersState.Ready(path, it) }, { LayersState.Failed(it.message ?: "Couldn't read the print file") })
         }
+    }
+
+    // ---- Calibration prints ----------------------------------------------------------
+
+    /** Makes a calibration print with the Slicer's current filament settings and sends it to the printer. */
+    fun sendCalibration(test: Calibration.Test) {
+        val s = _sliceSettings.value
+        val file = File(getApplication<Application>().cacheDir, "${test.file}_${s.filament.lowercase()}.gcode")
+        runCatching { file.writeText(Calibration.gcode(test, s)) }.onFailure { say("Couldn't write the calibration print"); return }
+        _loadState.value = LoadState.Ready(IncomingPattern(file.name, file, PatternKind.SLICED))
+        beamPattern(
+            FileMeta(
+                thumbnailUrl = null, estimatedSeconds = null, filamentMm = null, filamentGrams = null,
+                layerHeight = 0.2, objectHeight = null, slicer = "Replicator Ops calibration", filamentTypes = listOf(s.filament),
+            )
+        )
+    }
+
+    fun applyCalibration(test: Calibration.Test, index: Int) {
+        val s = _sliceSettings.value
+        _sliceSettings.value = when (test) {
+            Calibration.Test.FLOW -> s.copy(flow = Calibration.FLOW_STEPS[index])
+            Calibration.Test.PRESSURE_ADVANCE -> s.copy(pressureAdvance = Calibration.PA_STEPS[index])
+            Calibration.Test.RETRACTION -> s.copy(retraction = Calibration.RETRACTION_STEPS[index])
+        }
+        Chirp.confirm()
+        say("Saved to the Slicer's settings. Save a preset to keep it for this filament.")
     }
 
     fun startSlice() = slicer?.slice(_sliceSettings.value)

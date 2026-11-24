@@ -3,6 +3,7 @@ package dev.vantara.replicatorops.ui.screens
 import dev.vantara.replicatorops.slicer.SlicePreset
 import androidx.compose.runtime.LaunchedEffect
 import dev.vantara.replicatorops.slicer.ModelAdvisor
+import dev.vantara.replicatorops.slicer.Calibration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -158,7 +159,11 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
         is SliceState.Failed -> LcarsLabel("⚠ ${state.message}", color = s.alert, size = 14.sp, maxLines = 4)
         else -> Unit
     }
-    val (m, plate) = model ?: return
+    if (model == null) {
+        CalibrationSection(vm, settings, enabled = !busy)
+        return
+    }
+    val (m, plate) = model
 
     // ---- Model -----------------------------------------------------------------
     if (m.plates.size > 1) {
@@ -198,6 +203,7 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
     SettingsSections(settings, enabled = !busy) { vm.setSliceSettings(it) }
     Spacer(Modifier.height(10.dp))
     LcarsButton("Reset settings", color = s.frameAlt, height = 34.dp, enabled = !busy) { vm.resetSliceSettings() }
+    CalibrationSection(vm, settings, enabled = !busy)
     Spacer(Modifier.height(10.dp))
     LcarsLabel(
         "Slicing by CuraEngine (Ultimaker, AGPL-3.0 licence) with QIDI's Q2C start and end G-code. Check the first layer of new prints.",
@@ -566,5 +572,43 @@ private fun PresetsRow(vm: AppViewModel, plate: Plate, settings: SliceSettings, 
             onConfirm = { vm.deletePreset(pr); removing = null },
             onDismiss = { removing = null },
         )
+    }
+}
+
+
+/**
+ * Calibration prints for the filament in the Slicer's settings: send a test, look at the
+ * result, tap the best one, and it goes into the settings (save a preset to keep it).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CalibrationSection(vm: AppViewModel, settings: SliceSettings, enabled: Boolean) {
+    val s = LocalLcars.current
+    val p by vm.printer.collectAsState()
+    Section("Calibration prints", "Flow ${settings.flow}% · PA ${settings.pressureAdvance?.let { "%.3f".format(it) } ?: "printer"} · retraction %.1f mm".format(settings.retraction), s.nav[0]) {
+        LcarsLabel("Uses the ${settings.filament} settings above (${settings.nozzleTemp}° / ${settings.bedTemp}°). Print a test, then tap the best result.",
+            color = s.hint, size = 12.sp, maxLines = 3)
+        @Composable
+        fun Test(test: Calibration.Test, howTo: String, labels: List<String>, current: Int?) {
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LcarsLabel(test.label, color = s.accent, size = 16.sp, bold = true, modifier = Modifier.weight(1f))
+                LcarsButton("Print test", color = s.accent, height = 32.dp, enabled = enabled && p.online && !p.isBusy) { vm.sendCalibration(test) }
+            }
+            LcarsLabel(howTo, color = s.text, size = 12.sp, maxLines = 5)
+            FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                labels.forEachIndexed { i, l -> LcarsChip(l, selected = current == i) { if (enabled) vm.applyCalibration(test, i) } }
+            }
+        }
+        Test(Calibration.Test.FLOW,
+            "Seven squares, 90% on the left to 110% on the right (square n has n tabs in front). Pick the one whose top is smooth and full without ridges.",
+            Calibration.FLOW_STEPS.map { "$it%" }, Calibration.FLOW_STEPS.indexOf(settings.flow).takeIf { it >= 0 })
+        Test(Calibration.Test.PRESSURE_ADVANCE,
+            "Lines printed slow–fast–slow, 0.000 at the front to 0.080 at the back (a tick every 5th line). Pick the line that stays evenly thick where the speed changes.",
+            Calibration.PA_STEPS.map { "%.3f".format(it) }, settings.pressureAdvance?.let { pa -> Calibration.PA_STEPS.indexOfFirst { kotlin.math.abs(it - pa) < 1e-6 } }?.takeIf { it >= 0 })
+        Test(Calibration.Test.RETRACTION,
+            "Two towers, 3 mm bands from 0.2 mm retraction at the bottom to 2.0 mm at the top. Pick the lowest band with no strings between them.",
+            Calibration.RETRACTION_STEPS.map { "%.1f".format(it) }, Calibration.RETRACTION_STEPS.indexOfFirst { kotlin.math.abs(it - settings.retraction) < 1e-6 }.takeIf { it >= 0 })
+        if (!p.online) LcarsLabel("Connect to the printer to print a test.", color = s.alert, size = 11.sp)
     }
 }

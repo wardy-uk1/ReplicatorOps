@@ -58,6 +58,10 @@ data class SliceSettings(
     val fuzzySkin: Boolean = false,
     /** Thinner layers on curves and slopes, thicker on straight walls. */
     val adaptiveLayers: Boolean = false,
+    /** Flow (extrusion multiplier), % — from the flow calibration print. */
+    val flow: Int = 100,
+    /** Klipper pressure advance for this filament (null = the printer's own setting). */
+    val pressureAdvance: Double? = null,
     /** Where the defaults came from, for the screen. */
     val source: String = "QIDI Q2C · PLA defaults",
 ) {
@@ -174,6 +178,7 @@ data class SliceSettings(
         put("infill_pattern", infillPattern)
         put("z_seam_type", seam)
         put("ironing_enabled", ironing)
+        put("material_flow", flow.toDouble())
         put("magic_fuzzy_skin_enabled", fuzzySkin)
         put("adaptive_layer_height_enabled", adaptiveLayers)
         put("xy_offset", xyOffset)
@@ -217,7 +222,7 @@ data class SliceSettings(
         put("cool_min_layer_time", minLayerTime.toDouble())
     }
 
-    private fun q2cStart() = Q2C_START(firstLayerHeight, maxFlow, firstLayerNozzleTemp, firstLayerBedTemp)
+    private fun q2cStart() = Q2C_START(firstLayerHeight, maxFlow, firstLayerNozzleTemp, firstLayerBedTemp, pressureAdvance)
 }
 
 /** A named set of slicer settings you saved (e.g. "PETG strong"). */
@@ -231,7 +236,7 @@ const val TOTAL_LAYER_MARKER = "SET_PRINT_STATS_INFO TOTAL_LAYER={layers}"
 const val INITIAL_TOOL_MARKER = "ROPS_INITIAL_TOOL"
 
 /** QIDI Studio's Q2C start G-code, with its purge lines worked out for this filament's flow. */
-private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: Int): List<String> {
+private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: Int, pa: Double?): List<String> {
     val slow = (maxFlow / 1.2 * 60).roundToInt()
     val wipeSlow = (maxFlow / 0.15 / 4 * 60).roundToInt()
     val wipeFast = (maxFlow / 0.15 * 60).roundToInt()
@@ -256,6 +261,7 @@ private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: I
         "; Sliced on the phone by Replicator Ops (CuraEngine) for QIDI Q2C",
         "PRINT_START BED=$bedTemp HOTEND=$temp EXTRUDER=0",
         TOTAL_LAYER_MARKER,
+    ) + listOfNotNull(pa?.let { "SET_PRESSURE_ADVANCE ADVANCE=%.4f".format(java.util.Locale.ROOT, it) }) + listOf(
         "M83",
         "M140 S$bedTemp",
         "M104 S$temp",

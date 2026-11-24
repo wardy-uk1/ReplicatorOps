@@ -76,6 +76,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("chirps", true)
         set(v) = sp.edit().putBoolean("chirps", v).apply()
 
+    /** Double red alert sounds on the alarm volume, through Do Not Disturb. */
+    var alertThroughDnd: Boolean
+        get() = sp.getBoolean("alert_through_dnd", true)
+        set(v) = sp.edit().putBoolean("alert_through_dnd", v).apply()
+
     /** Symbol shown in notifications: replicator, gear, elbow or chip (see NotificationIcon). */
     var notificationIcon: String
         get() = sp.getString("notification_icon", "replicator") ?: "replicator"

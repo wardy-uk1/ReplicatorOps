@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops
 
+import androidx.compose.foundation.layout.padding
+import dev.vantara.replicatorops.ui.lcars.alertStyle
 import android.content.pm.PackageManager
 import android.speech.SpeechRecognizer
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -83,6 +85,7 @@ import dev.vantara.replicatorops.ui.screens.stateLabel
 import java.time.LocalDateTime
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -109,7 +112,15 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleIncoming(intent)
         setContent {
             val style by vm.style.collectAsState()
-            LcarsTheme(style) { ScaledToScreen { App(vm) } }
+            val alert by vm.alert.collectAsState()
+            val ack by vm.alertAck.collectAsState()
+            val showing = alert.active && alert.reason != ack
+            // Double red alert flashes twice a second.
+            val flash by produceState(false, alert.condition) {
+                while (alert.condition == dev.vantara.replicatorops.alert.Condition.DOUBLE_RED) { delay(500); value = !value }
+                value = false
+            }
+            LcarsTheme(if (showing) alertStyle(style, alert.condition, flash) else style) { ScaledToScreen { App(vm) } }
         }
     }
 
@@ -187,10 +198,16 @@ internal fun App(vm: AppViewModel) {
         nav = nav,
         selected = screens.indexOf(screen.parent),
         onSelect = { vm.select(screens[it]) },
-        footer = { Chronometer(stateLabel(p), now) },
+        footer = {
+            val alert by vm.alert.collectAsState()
+            val ack by vm.alertAck.collectAsState()
+            Chronometer(if (alert.active && alert.reason != ack) alert.condition.label else stateLabel(p), now)
+        },
         onTitleClick = { picking = true },
         titleAction = { Combadge(onLongClick = { typing = true }) { startListening() } },
     ) {
+        Column {
+        AlertBanner(vm)
         when (screen) {
             Screen.STATUS -> StatusScreen(vm)
             Screen.CONTROL -> ControlScreen(vm)
@@ -202,6 +219,7 @@ internal fun App(vm: AppViewModel) {
             Screen.CONFIG -> ConfigScreen(vm)
             Screen.STORES -> StoresScreen(vm)
             Screen.LOG -> LogScreen(vm)
+        }
         }
     }
 
@@ -355,4 +373,32 @@ private fun TypedCommand(vm: AppViewModel, onDismiss: () -> Unit) {
         confirmButton = { LcarsButton("Engage", color = s.accent, enabled = text.isNotBlank()) { send(text) } },
         dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { onDismiss() } },
     )
+}
+
+
+/** Alert banner across the top of every screen: condition, reason, and Acknowledge. */
+@Composable
+private fun AlertBanner(vm: AppViewModel) {
+    val s = LocalLcars.current
+    val alert by vm.alert.collectAsState()
+    val ack by vm.alertAck.collectAsState()
+    if (!alert.active || alert.reason == ack) return
+    val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "alert banner")
+    val a by pulse.animateFloat(
+        0.55f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(tween(if (alert.condition == dev.vantara.replicatorops.alert.Condition.DOUBLE_RED) 350 else 800),
+            androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "alert pulse",
+    )
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp))
+            .background(s.frame.copy(alpha = a)).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            LcarsLabel(alert.condition.label, color = Color.Black, size = 18.sp, bold = true)
+            alert.reason?.let { LcarsLabel(it, color = Color.Black, size = 13.sp, maxLines = 3) }
+        }
+        LcarsButton("Acknowledge", color = Color.Black.copy(alpha = 0.25f), height = 34.dp) { vm.acknowledgeAlert() }
+    }
 }

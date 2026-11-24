@@ -86,7 +86,7 @@ object CuraGcode {
     fun toolChange(from: Int, to: Int, z: Double, tc: ToolChange): List<String> = buildList {
         add("; ---- filament change T$from -> T$to (QIDI Box) ----")
         add("M83")
-        add("G1 Z%.3f F1200".format(minOf(z + 3.0, 256.0)))
+        add("G1 Z%.3f F1200".format(java.util.Locale.ROOT, minOf(z + 3.0, 256.0)))
         add("TOOL_CHANGE_START F=$from T=$to")
         add("BUFFER_MONITORING ENABLE=0")
         add("DISABLE_ALL_SENSOR")
@@ -111,11 +111,11 @@ object CuraGcode {
                 val r = f - 23.7
                 add("G1 E23.7 F${tc.feed}")
                 repeat(4) { k ->
-                    add("G1 E%.3f F50".format(r * 0.02))
-                    add("G1 E%.3f F${tc.feed}".format(r * 0.23))
+                    add("G1 E%.3f F50".format(java.util.Locale.ROOT, r * 0.02))
+                    add("G1 E%.3f F${tc.feed}".format(java.util.Locale.ROOT, r * 0.23))
                 }
             } else {
-                add("G1 E%.3f F${tc.feed}".format(f))
+                add("G1 E%.3f F${tc.feed}".format(java.util.Locale.ROOT, f))
             }
             add("G1 E-2 F1800")
             add("; FLUSH_END")
