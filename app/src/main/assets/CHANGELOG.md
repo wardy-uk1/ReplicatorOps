@@ -4,6 +4,19 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.0
+- Alert conditions: the whole app turns yellow or red, with a banner saying why and an Acknowledge button. Yellow: you paused, a heater is slow, the Box is damp. Red: the print failed or paused itself, or the printer reported an error. Double red: Klipper shut down (e.g. a heater fault) or the printer was lost mid-print. The app flashes and sounds a klaxon, which can sound through Do Not Disturb (Config → Red Alert)
+- Failure spotter: checks the camera during prints, on the phone, and raises Red Alert with the photo and a Pause button if it looks like spaghetti or a loose part
+- Ship's computer on the Slicer: checks each model and suggests how to print it stronger or more detailed (turn it, supports, brim, thicker walls, finer layers, smoothing)
+- Arrange on the bed: move, turn, scale, copy and auto-arrange models
+- Multi-colour slicing with the QIDI Box, matched to your Box slots, using QIDI's own filament change routine
+- Slicer presets, calibration prints (flow, pressure advance, retraction), seam, ironing, fuzzy skin, adaptive layers and thicker thin parts
+- Layer preview after slicing, and a live print view on Status that fills in as the printer goes
+- Computer voice: choose the voice, pitch, pace and chirp for spoken replies
+- Choose the notification symbol (Replicator, Engineering, LCARS or Isolinear)
+- Thermal log keeps an hour and scrolls; bed mesh profiles; tap the print picture to enlarge it
+- No more "Couldn't list files" message after sending a print; the screen stays on while the camera is showing
+
 ## 2.1.0-beta.9 · Stardate 202624.11
 - Computer voice (Config): choose which of your phone's voices speaks the computer's replies, set a lower "computer" pitch and a measured pace, and a short chirp before each reply. Tap a voice to hear it
 - Failure spotter: while Red Alert is on, the camera is checked every 20 seconds during a print, on the phone. If the picture suddenly looks like spaghetti or a part come loose, you get a Red Alert with the photo and a Pause button. Choose Low, Medium or High sensitivity in Config → Red Alert
