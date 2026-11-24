@@ -31,6 +31,12 @@ import dev.vantara.replicatorops.slicer.ModelReader
 import dev.vantara.replicatorops.slicer.SliceSettings
 import dev.vantara.replicatorops.slicer.SliceState
 import dev.vantara.replicatorops.slicer.SlicerEngine
+import dev.vantara.replicatorops.slicer.SlicePreset
+import dev.vantara.replicatorops.data.ToolNeed
+import dev.vantara.replicatorops.slicer.Arrange
+import dev.vantara.replicatorops.slicer.Geometry
+import dev.vantara.replicatorops.slicer.Part
+import dev.vantara.replicatorops.slicer.PlacedObject
 import dev.vantara.replicatorops.slicer.Plate
 import dev.vantara.replicatorops.slicer.ModelAdvisor
 import kotlinx.coroutines.Dispatchers
@@ -794,6 +800,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             objectHeight = got.objectHeight ?: local.objectHeight,
             slicer = got.slicer ?: local.slicer,
             filamentTypes = got.filamentTypes.ifEmpty { local.filamentTypes },
+            filamentColors = got.filamentColors.ifEmpty { local.filamentColors },
+            tools = got.tools.ifEmpty { local.tools },
         )
     }
 
@@ -1177,6 +1185,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val sliceSettings: StateFlow<SliceSettings> = _sliceSettings.asStateFlow()
     fun setSliceSettings(s: SliceSettings) { _sliceSettings.value = s }
 
+    // ---- Presets ---------------------------------------------------------------------
+    private val _presets = MutableStateFlow(prefs.slicePresets)
+    val presets: StateFlow<List<SlicePreset>> = _presets.asStateFlow()
+
+    /** Saves the screen's settings under [name] (replacing a preset of the same name). */
+    fun savePreset(name: String) {
+        val n = name.trim().take(32).ifEmpty { return }
+        val list = _presets.value.filterNot { it.name.equals(n, ignoreCase = true) } + SlicePreset(n, _sliceSettings.value.copy(source = "Preset: $n"))
+        _presets.value = list.sortedBy { it.name.lowercase() }
+        prefs.slicePresets = _presets.value
+        say("Preset \"$n\" saved"); Chirp.confirm()
+    }
+
+    fun applyPreset(p: SlicePreset) { _sliceSettings.value = p.settings.copy(source = "Preset: ${p.name}") }
+
+    fun deletePreset(p: SlicePreset) {
+        _presets.value = _presets.value.filterNot { it.name == p.name }
+        prefs.slicePresets = _presets.value
+    }
+
     /** "Slice it here" from the Load pattern pop-up. */
     fun sliceIncoming() {
         val p = when (val st = _loadState.value) {
@@ -1284,16 +1312,95 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun changeMesh(what: String, op: (FloatArray) -> FloatArray) {
-        val engine = slicer ?: return
         val plate = currentPlate() ?: return
         _meshWorking.value = what
         viewModelScope.launch {
-            val tris = withContext(Dispatchers.Default) { runCatching { op(plate.triangles) }.getOrNull() }
+            val objects = withContext(Dispatchers.Default) {
+                runCatching { plate.objects.map { o -> reshape(o, op) } }.getOrNull()
+            }
             _meshWorking.value = null
-            if (tris == null) { Chirp.deny(); say("Couldn't change the model"); return@launch }
-            engine.replacePlate(Plate(plate.number, plate.name, plate.objectNames, tris, plate.thumbnail))
+            if (objects == null) { Chirp.deny(); say("Couldn't change the model"); return@launch }
+            setObjects(objects.map { Arrange.keepOnBed(it) })
         }
     }
+
+    /** Runs a mesh change over one object's parts together, keeping where it sits on the bed. */
+    private fun reshape(o: PlacedObject, op: (FloatArray) -> FloatArray): PlacedObject {
+        val changed = if (o.parts.size == 1) listOf(op(o.parts[0].triangles) to o.parts[0].filament)
+        else {
+            // Parts must move together: change them as one mesh, then split it back.
+            val sizes = o.parts.map { it.triangles.size }
+            val all = op(Geometry.concat(o.parts.map { it.triangles }))
+            val ratio = all.size / sizes.sum()
+            var pos = 0
+            o.parts.mapIndexed { i, p -> all.copyOfRange(pos, pos + sizes[i] * ratio).also { pos += sizes[i] * ratio } to p.filament }
+        }
+        val local = Geometry.place(o.id, o.name, changed)
+        return o.copy(parts = local.parts)
+    }
+
+    // ---- Arrange on the bed --------------------------------------------------------
+
+    /** Replaces the objects on the plate on screen (moved, turned, scaled, copied…). */
+    fun setObjects(objects: List<PlacedObject>) {
+        val engine = slicer ?: return
+        val plate = currentPlate() ?: return
+        engine.replacePlate(plate.copy(objects = objects))
+    }
+
+    private fun editObject(id: Int, change: (PlacedObject) -> PlacedObject) {
+        val plate = currentPlate() ?: return
+        setObjects(plate.objects.map { if (it.id == id) Arrange.keepOnBed(change(it)) else it })
+    }
+
+    fun moveObject(id: Int, x: Float, y: Float) = editObject(id) { it.copy(x = x, y = y) }
+    fun turnObject(id: Int, degrees: Float) = editObject(id) { it.copy(rotation = ((it.rotation + degrees) % 360f + 360f) % 360f) }
+    fun scaleObject(id: Int, scale: Float) = editObject(id) { it.copy(scale = scale.coerceIn(0.1f, 10f)) }
+    fun setObjectFilament(id: Int, filament: Int) = editObject(id) { o -> o.copy(parts = o.parts.map { Part(it.triangles, filament) }) }
+
+    fun copyObject(id: Int) {
+        val plate = currentPlate() ?: return
+        val o = plate.objects.firstOrNull { it.id == id } ?: return
+        val copy = o.copy(id = (plate.objects.maxOf { it.id }) + 1)
+        val placed = Arrange.findRoom(plate.objects, copy)
+        if (placed != null) setObjects(plate.objects + placed)
+        else { say("No room for another copy: arranging the bed"); setObjects(Arrange.auto(plate.objects + copy)) }
+        Chirp.confirm()
+    }
+
+    fun deleteObject(id: Int) {
+        val plate = currentPlate() ?: return
+        if (plate.objects.size <= 1) { say("That's the last object on the plate"); Chirp.deny(); return }
+        setObjects(plate.objects.filterNot { it.id == id })
+    }
+
+    fun arrangeAll() { currentPlate()?.let { setObjects(Arrange.auto(it.objects)) } }
+    fun centreAll() { currentPlate()?.let { setObjects(Arrange.centre(it.objects)) } }
+
+    // ---- Filaments → QIDI Box slots ------------------------------------------------------
+
+    /** Box slot chosen for each filament (tool) of the plate on screen; suggested, then yours to change. */
+    private val _slotChoice = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val slotChoice: StateFlow<Map<Int, Int>> = _slotChoice.asStateFlow()
+    private var slotChoiceFor: Plate? = null
+
+    /** What the plate's filaments need, for matching to the Box. */
+    fun filamentNeeds(plate: Plate): List<ToolNeed> = plate.usedFilaments.map { t ->
+        val f = plate.filaments.getOrNull(t)
+        ToolNeed(t, f?.type ?: _sliceSettings.value.filament, f?.color)
+    }
+
+    /** Suggests slots for a newly shown plate (keeps your choices while it's the same model). */
+    fun suggestSlots(plate: Plate) {
+        val box = printer.value.box ?: return
+        val needs = filamentNeeds(plate)
+        val keep = _slotChoice.value.filterKeys { k -> needs.any { it.tool == k } }
+        if (slotChoiceFor?.number == plate.number && keep.size == needs.size) return
+        slotChoiceFor = plate
+        _slotChoice.value = FilamentMapping.suggest(needs, box.slots, box.toolMap) + keep
+    }
+
+    fun chooseSlot(tool: Int, slot: Int) { _slotChoice.update { it + (tool to slot) } }
 
     fun startSlice() = slicer?.slice(_sliceSettings.value)
     fun cancelSlice() = slicer?.cancel()
@@ -1301,6 +1408,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Sends the sliced G-code to the printer (the usual Load pattern upload). */
     fun sendSliced() {
         val done = slicer?.state?.value as? SliceState.Done ?: return
+        // Point each filament at the Box slot chosen on the Slicer screen.
+        val needs = filamentNeeds(done.plate)
+        val map = _slotChoice.value.filterKeys { k -> needs.any { it.tool == k } }
+        if (map.isNotEmpty() && printer.value.box != null) {
+            viewModelScope.launch { runCatching { client.gcode(FilamentMapping.gcode(map)) } }
+        }
         val copy = File(getApplication<Application>().cacheDir, done.gcode.name).also { done.gcode.copyTo(it, overwrite = true) }
         _loadState.value = LoadState.Ready(IncomingPattern(copy.name, copy, PatternKind.SLICED))
         val s = sliceSettings.value
@@ -1313,7 +1426,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 layerHeight = s.layerHeight,
                 objectHeight = done.plate.size.third.toDouble(),
                 slicer = "CuraEngine (Replicator Ops)",
-                filamentTypes = listOf(s.filament),
+                // Indexed by tool number, as Moonraker reports them.
+                filamentTypes = (0..(needs.maxOfOrNull { it.tool } ?: 0)).map { t -> needs.firstOrNull { it.tool == t }?.type ?: s.filament },
+                filamentColors = (0..(needs.maxOfOrNull { it.tool } ?: 0)).map { t -> needs.firstOrNull { it.tool == t }?.color },
+                tools = needs.map { it.tool },
             )
         )
     }

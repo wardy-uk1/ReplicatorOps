@@ -83,18 +83,26 @@ class SlicerEngine(context: Context) {
         if (!bin.exists()) error("The slicing engine isn't available on this phone (it needs a 64-bit ARM phone).")
         work.listFiles()?.forEach { if (it.name.endsWith(".gcode") || it.name.endsWith(".png")) it.delete() }
 
+        // Filaments the objects use. CuraEngine numbers them 0, 1, …; the file keeps the 3MF's tool numbers.
+        val tools = plate.usedFilaments.ifEmpty { listOf(0) }
+        val extruderOf = tools.withIndex().associate { (e, t) -> t to e }
+
         // Settings: every Cura value worked out from the screen's settings.
         progress(model, plate, "Preparing", 2)
-        val values = table.resolve(settings.curaOverrides())
+        val values = table.resolve(settings.curaOverrides(tools.size))
         val json = File(work, "settings.json").apply { writeText(CuraSettings.toEngineJson(values, table).toString()) }
 
-        // The plate, placed where the 3MF put it (or centred), in Cura's centred bed coordinates.
-        val stl = File(work, "plate.stl")
-        stl.outputStream().buffered().use { Stl.writeBinary(CuraGcode.placeOnBed(plate.triangles, 270f, 270f), it) }
-
+        // One STL per part, in Cura's coordinates (origin at the bed centre).
+        val parts = ArrayList<Pair<File, Int>>()
+        for (o in plate.objects) for (part in o.parts) {
+            val stl = File(work, "part${parts.size}.stl")
+            stl.outputStream().buffered().use { Stl.writeBinary(CuraGcode.toCura(o.world(part), 270f, 270f), it) }
+            parts += stl to (extruderOf[part.filament] ?: 0)
+        }
         val base = safeName(model.name, plate)
         val raw = File(work, "$base.raw.gcode")
-        val proc = ProcessBuilder(bin.path, "slice", "-j", json.path, "-l", stl.path, "-o", raw.path)
+        val args = CuraGcode.engineArgs(bin.path, json, tools.size, parts, raw)
+        val proc = ProcessBuilder(args)
             .directory(work)
             .redirectErrorStream(true)
             .start()
@@ -107,6 +115,7 @@ class SlicerEngine(context: Context) {
         }
         val exit = proc.waitFor()
         process = null
+        work.listFiles()?.forEach { if (it.name.startsWith("part") && it.name.endsWith(".stl")) it.delete() }
         if (exit != 0 || !raw.exists() || raw.length() == 0L) {
             error(log.lastError ?: "The slicer stopped (code $exit)")
         }
@@ -116,7 +125,11 @@ class SlicerEngine(context: Context) {
         val thumb = runCatching { mesh?.thumbnailBase64(300) }.getOrNull()
         val small = runCatching { mesh?.thumbnailBase64(96) }.getOrNull()
         val target = File(work, "$base.gcode")
-        val info = CuraGcode.finish(raw, target, log.header, listOfNotNull(small?.let { 96 to it }, thumb?.let { 300 to it }))
+        val tc = CuraGcode.ToolChange(
+            tools = tools, temp = settings.nozzleTemp,
+            feed = (settings.maxFlow / 2.405 * 60).toInt().coerceIn(200, 1200),
+        )
+        val info = CuraGcode.finish(raw, target, log.header, listOfNotNull(small?.let { 96 to it }, thumb?.let { 300 to it }), tc)
         raw.delete()
         val png = thumb?.let { b64 ->
             runCatching { File(work, "$base-thumb.png").also { it.writeBytes(Base64.decode(b64, Base64.DEFAULT)) } }.getOrNull()

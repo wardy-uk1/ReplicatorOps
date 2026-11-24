@@ -97,6 +97,13 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putBoolean("asked_notifications", v).apply()
 
     /** Macro names starred on the Ship systems screen. */
+    /** Saved slicer presets. */
+    var slicePresets: List<dev.vantara.replicatorops.slicer.SlicePreset>
+        get() = sp.getString("slice_presets", null)
+            ?.let { runCatching { json.decodeFromString<List<dev.vantara.replicatorops.slicer.SlicePreset>>(it) }.getOrNull() }
+            .orEmpty()
+        set(v) = sp.edit().putString("slice_presets", json.encodeToString(v)).apply()
+
     var favouriteMacros: Set<String>
         get() = sp.getStringSet("fav_macros", emptySet())?.toSet() ?: emptySet()
         set(v) = sp.edit().putStringSet("fav_macros", v).apply()

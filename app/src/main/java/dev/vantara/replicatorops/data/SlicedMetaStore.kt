@@ -45,6 +45,8 @@ class SlicedMetaStore(private val dir: File) {
             saved.objectHeight?.let { put("objectHeight", it) }
             saved.slicer?.let { put("slicer", it) }
             putJsonArray("filaments") { saved.filamentTypes.forEach { add(JsonPrimitive(it)) } }
+            putJsonArray("colours") { saved.filamentColors.forEach { add(JsonPrimitive(it ?: -1L)) } }
+            putJsonArray("tools") { saved.tools.forEach { add(JsonPrimitive(it)) } }
         }.toString())
         saved
     }.getOrNull()
@@ -59,6 +61,8 @@ class SlicedMetaStore(private val dir: File) {
             thumbnailUrl = (o["thumbnail"] as? JsonPrimitive)?.contentOrNull
                 ?.takeIf { File(it.removePrefix("file://")).exists() },
             filamentTypes = (o["filaments"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
+            filamentColors = (o["colours"] as? JsonArray)?.map { (it as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { c -> c >= 0 } }.orEmpty(),
+            tools = (o["tools"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content?.toIntOrNull() }.orEmpty(),
             estimatedSeconds = d("seconds"),
             filamentMm = d("filamentMm"),
             filamentGrams = null,

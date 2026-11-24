@@ -1,5 +1,6 @@
 package dev.vantara.replicatorops.ui.screens
 
+import dev.vantara.replicatorops.slicer.SlicePreset
 import androidx.compose.runtime.LaunchedEffect
 import dev.vantara.replicatorops.slicer.ModelAdvisor
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -169,16 +170,29 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
         }
     }
     Spacer(Modifier.height(4.dp))
-    LcarsReadout("Objects", plate.objectNames.joinToString(", "))
+    val names = plate.objectNames.groupingBy { it }.eachCount().entries.joinToString(", ") { (n, c) -> if (c > 1) "$n ×$c" else n }
+    LcarsReadout("Objects", names)
     val (x, y, z) = plate.size
-    val fits = x <= 270 && y <= 270 && z <= 256
+    val fits = plate.fits()
     LcarsReadout("Size", "%.0f × %.0f × %.0f mm".format(x, y, z), valueColor = if (fits) s.text else s.alert)
-    if (!fits) LcarsLabel("⚠ Bigger than the Q2C's 270 × 270 × 256 mm build area", color = s.alert, size = 12.sp, maxLines = 2)
+    if (!fits) LcarsLabel("⚠ Something is off the Q2C's 270 × 270 × 256 mm build area. Arrange it below.", color = s.alert, size = 12.sp, maxLines = 2)
+
+    // ---- Arrange and filaments ----------------------------------------------------------
+    Section("Arrange on the bed", "${plate.objects.size} object${if (plate.objects.size == 1) "" else "s"} · tap to move, turn, scale or copy", s.nav[3]) {
+        ArrangePanel(vm, plate, enabled = !busy)
+    }
+    val used = plate.usedFilaments
+    Section("Filaments & Box slots", if (used.size > 1) "${used.size} colours" else "1 filament", s.nav[4 % s.nav.size]) {
+        FilamentsPanel(vm, plate)
+    }
     Spacer(Modifier.height(4.dp))
     LcarsLabel(settings.source, color = s.hint, size = 12.sp)
 
     // ---- Ship's computer: suggestions ---------------------------------------------------
     ComputerCard(vm, plate, settings, busy)
+
+    // ---- Presets ---------------------------------------------------------------------
+    PresetsRow(vm, plate, settings, enabled = !busy)
 
     // ---- Settings in fold-away sections -------------------------------------------
     SettingsSections(settings, enabled = !busy) { vm.setSliceSettings(it) }
@@ -199,7 +213,7 @@ private fun ActionBar(vm: AppViewModel, state: SliceState, model: Pair<ModelFile
     val p by vm.printer.collectAsState()
     model ?: return
     val (x, y, z) = model.second.size
-    val fits = x <= 270 && y <= 270 && z <= 256
+    val fits = model?.second?.fits() ?: true
     Column(Modifier.fillMaxWidth().background(Color.Black).padding(top = 6.dp)) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(s.frameAlt))
         Spacer(Modifier.height(6.dp))
@@ -477,5 +491,65 @@ private fun ComputerCard(vm: AppViewModel, plate: Plate, settings: SliceSettings
                 }
             }
         }
+    }
+}
+
+
+/**
+ * Saved presets: tap to use one (Remove appears for the one in use), "Save as" to keep the current
+ * settings. A dot marks presets for the filament in the Box slot chosen for the first filament.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PresetsRow(vm: AppViewModel, plate: Plate, settings: SliceSettings, enabled: Boolean) {
+    val s = LocalLcars.current
+    val presets by vm.presets.collectAsState()
+    val choice by vm.slotChoice.collectAsState()
+    val p by vm.printer.collectAsState()
+    var naming by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf<SlicePreset?>(null) }
+    val firstTool = plate.usedFilaments.firstOrNull() ?: 0
+    val boxType = choice[firstTool]?.let { slot -> p.box?.slots?.firstOrNull { it.index == slot }?.material }
+    Spacer(Modifier.height(10.dp))
+    LcarsLabel("Presets" + (boxType?.let { " · Box has $it" } ?: ""), color = s.accent2, size = 13.sp)
+    FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        presets.forEach { pr ->
+            val matches = boxType != null && dev.vantara.replicatorops.data.FilamentMapping.sameType(boxType, pr.settings.filament)
+            LcarsChip((if (matches) "● " else "") + pr.name, selected = settings.source == "Preset: ${pr.name}") { if (enabled) vm.applyPreset(pr) }
+        }
+        LcarsButton("Save as…", color = s.frameAlt, height = 32.dp, enabled = enabled) { naming = true }
+        presets.firstOrNull { settings.source == "Preset: ${it.name}" }?.let { cur ->
+            LcarsButton("Remove", color = s.alert, height = 32.dp, enabled = enabled) { removing = cur }
+        }
+    }
+
+    if (naming) {
+        var text by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { naming = false },
+            containerColor = Color.Black,
+            modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
+            title = { LcarsLabel("Save preset", color = s.nav[1], size = 20.sp, bold = true) },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = text, onValueChange = { text = it.take(32) }, singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = dev.vantara.replicatorops.ui.lcars.LcarsFont, fontSize = 18.sp, color = s.text),
+                    label = { LcarsLabel("Name, e.g. PETG strong", color = s.accent2, size = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = { LcarsButton("Save", color = s.nav[1], enabled = text.isNotBlank()) { vm.savePreset(text); naming = false } },
+            dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { naming = false } },
+        )
+    }
+    removing?.let { pr ->
+        dev.vantara.replicatorops.ui.lcars.LcarsConfirm(
+            title = "Remove \"${pr.name}\"?",
+            text = "Deletes this preset from the phone.",
+            confirmLabel = "Remove",
+            color = s.alert,
+            onConfirm = { vm.deletePreset(pr); removing = null },
+            onDismiss = { removing = null },
+        )
     }
 }

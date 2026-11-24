@@ -278,7 +278,7 @@ object ModelAdvisor {
      * One step of Loop subdivision with sharp creases: each triangle becomes four, curved
      * areas are smoothed, and edges sharper than [creaseDeg] stay sharp. Stays on the bed.
      */
-    fun smooth(t: FloatArray, creaseDeg: Double = 35.0): FloatArray {
+    fun smooth(t: FloatArray, creaseDeg: Double = 35.0, dropToBed: Boolean = true): FloatArray {
         val m = Indexed(t)
         val vCount = m.verts.size / 3
         val creaseCos = cos(Math.toRadians(creaseDeg))
@@ -345,6 +345,7 @@ object ModelAdvisor {
             vert(c); put(ca); put(bc)
             put(ab); put(bc); put(ca)
         }
+        if (!dropToBed) return out
         val mz = out.minZ()
         var i = 2
         while (i < out.size) { out[i] -= mz; i += 3 }

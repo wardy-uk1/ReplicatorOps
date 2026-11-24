@@ -4,6 +4,13 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.0-beta.6
+- Arrange on the bed: a top-down view of the Q2C's bed in the Slicer. Tap an object to pick it, drag to move it, turn it (15° or 90° steps), scale it, copy it or remove it. Arrange all packs everything neatly; Centre moves the group to the middle. Anything off the bed shows in red
+- Multi-colour slicing with the QIDI Box: objects and parts keep their filament from the 3MF (Orca, QIDI Studio, Bambu Studio and PrusaSlicer), or pick a filament for any object. Each filament is matched to the Box slot with the closest type and colour, and you can tap to change it. Filament changes cut, flush and load just like QIDI Studio's prints
+- Presets: save the settings you like ("PETG strong", "PLA quick") and use them in one tap. A dot marks presets for the filament in the chosen Box slot
+- 3MF modifier and negative parts are no longer printed as solid objects
+- Models made for other printers' beds are centred on the Q2C, or arranged if they don't fit
+
 ## 2.1.0-beta.5 · Stardate 202624.11
 - Choose the symbol shown in notifications: Replicator, Engineering gear, LCARS elbow or Isolinear chip (Config → LCARS System). Notifications already showing switch straight away
 

@@ -1,5 +1,6 @@
 package dev.vantara.replicatorops.slicer
 
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -12,6 +13,7 @@ import kotlin.math.roundToInt
  * a 3MF saved by OrcaSlicer / QIDI Studio / Bambu Studio fills them from its
  * project_settings.config.
  */
+@Serializable
 data class SliceSettings(
     val layerHeight: Double = 0.2,
     val firstLayerHeight: Double = 0.2,
@@ -134,7 +136,16 @@ data class SliceSettings(
      * The CuraEngine settings this screen controls, plus the QIDI Q2C machine itself.
      * Everything else is worked out from these by Cura's own formulas (see [CuraSettings]).
      */
-    fun curaOverrides(): Map<String, Any?> = buildMap {
+    fun curaOverrides(extruders: Int = 1): Map<String, Any?> = buildMap {
+        // Filaments: the Q2C has one nozzle and heater; the QIDI Box swaps filament into it.
+        put("machine_extruder_count", extruders.toLong())
+        put("extruders_enabled_count", extruders.toLong())
+        put("machine_extruders_share_heater", true)
+        put("machine_extruders_share_nozzle", true)
+        put("machine_extruders_shared_nozzle_initial_retraction", 0.0)
+        put("prime_tower_enable", false)  // QIDI flushes into the waste chute instead
+        put("switch_extruder_retraction_amount", 0.0)
+        put("switch_extruder_extra_prime_amount", 0.0)
         // Machine: QIDI Q2C, Klipper (Marlin-style G-code), relative extrusion like QIDI Studio.
         put("machine_name", "QIDI Q2C")
         put("machine_width", 270.0); put("machine_depth", 270.0); put("machine_height", 256.0)
@@ -209,8 +220,15 @@ data class SliceSettings(
     private fun q2cStart() = Q2C_START(firstLayerHeight, maxFlow, firstLayerNozzleTemp, firstLayerBedTemp)
 }
 
+/** A named set of slicer settings you saved (e.g. "PETG strong"). */
+@Serializable
+data class SlicePreset(val name: String, val settings: SliceSettings)
+
 /** Replaced with the real layer count once CuraEngine has sliced (see SlicerEngine). */
 const val TOTAL_LAYER_MARKER = "SET_PRINT_STATS_INFO TOTAL_LAYER={layers}"
+
+/** Replaced with "T<n>" for the first filament the print uses (see CuraGcode.finish). */
+const val INITIAL_TOOL_MARKER = "ROPS_INITIAL_TOOL"
 
 /** QIDI Studio's Q2C start G-code, with its purge lines worked out for this filament's flow. */
 private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: Int): List<String> {
@@ -242,7 +260,7 @@ private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: I
         "M140 S$bedTemp",
         "M104 S$temp",
         "G4 P3000",
-        "T0",
+        INITIAL_TOOL_MARKER,
         "G90",
     ) + purge("1", 8) + purge("2.5", 10) + listOf("G1 Z1 F600", "G92 E0")
 }

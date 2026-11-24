@@ -38,7 +38,7 @@ class SliceSettingsTest {
         val start = o["machine_start_gcode"] as String
         assertTrue(start.contains("PRINT_START BED=55 HOTEND=215"))
         assertTrue(start.contains(TOTAL_LAYER_MARKER))
-        assertTrue(start.contains("T0"))
+        assertTrue(start.contains(INITIAL_TOOL_MARKER))
         assertEquals(270.0, o["machine_width"])
         assertEquals(false, o["material_print_temp_prepend"])
         assertEquals(60.0, o["support_angle"])  // Orca 30° from horizontal = Cura 60° from vertical

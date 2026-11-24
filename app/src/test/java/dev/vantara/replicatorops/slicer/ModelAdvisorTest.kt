@@ -9,6 +9,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class ModelAdvisorTest {
+    private fun plateOf(t: FloatArray) = Plate(1, "", listOf(Geometry.place(1, "o", listOf(t to 0))), null)
+
     private fun boxes(vararg b: FloatArray): FloatArray {
         val tri = ArrayList<Float>()
         for (q in b) {
@@ -68,7 +70,7 @@ class ModelAdvisorTest {
         val sm = ModelAdvisor.smooth(t)
         assertEquals(t.size * 4, sm.size)
         // Sharp rims stay put: still 40 mm across and 30 mm tall, on the bed.
-        val p = Plate(1, "c", listOf("c"), sm, null)
+        val p = plateOf(sm)
         assertEquals(30f, p.size.third, 0.01f)
         assertTrue(p.size.first in 38f..40.01f)
         var minZ = Float.MAX_VALUE; var i = 2; while (i < sm.size) { minZ = minOf(minZ, sm[i]); i += 3 }
@@ -78,7 +80,7 @@ class ModelAdvisorTest {
     @Test fun rotateKeepsItOnTheBed() {
         val t = boxes(floatArrayOf(100f, 100f, 0f, 150f, 110f, 5f))
         val r = ModelAdvisor.rotate(t, ModelAdvisor.Orientation.X_90)
-        val p = Plate(1, "b", listOf("b"), r, null)
+        val p = plateOf(r)
         assertEquals(50f, p.size.first, 0.01f); assertEquals(5f, p.size.second, 0.01f); assertEquals(10f, p.size.third, 0.01f)
     }
 }
