@@ -4,6 +4,9 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.2.0-beta.3
+- The standing-by notification now says "Monitoring subspace link to" your printer
+
 ## 2.2.0-beta.2
 - The ongoing notification now reads "Replicator standing by" instead of mentioning Red Alert when the printer is idle
 
