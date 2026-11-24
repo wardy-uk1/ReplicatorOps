@@ -174,7 +174,7 @@ private fun FileTile(f: GcodeFile, m: FileMeta?, vm: AppViewModel, onClick: () -
             }
         }
         Column(Modifier.padding(horizontal = 7.dp, vertical = 5.dp)) {
-            LcarsLabel(f.name.removeSuffix(".gcode"), color = s.text, size = 13.sp)
+            LcarsLabel(f.name.removeSuffix(".3mf").removeSuffix(".gcode"), color = s.text, size = 13.sp)
             LcarsLabel(
                 listOfNotNull(m?.estimatedSeconds?.let { formatDuration(it) }, formatDate(f.modified)).joinToString(" · "),
                 color = s.accent2,
@@ -199,7 +199,7 @@ private fun FileDialog(
         onDismissRequest = onDismiss,
         containerColor = Color.Black,
         modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
-        title = { LcarsLabel(file.name.removeSuffix(".gcode"), color = s.nav[1], size = 20.sp, bold = true, maxLines = 2) },
+        title = { LcarsLabel(file.name.removeSuffix(".3mf").removeSuffix(".gcode"), color = s.nav[1], size = 20.sp, bold = true, maxLines = 2) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (meta?.thumbnailUrl != null) {

@@ -38,7 +38,11 @@ object CuraGcode {
         }
     }
 
-    data class Info(val layers: Int, val seconds: Double?, val filamentMm: Double?)
+    data class Info(
+        val layers: Int, val seconds: Double?, val filamentMm: Double?,
+        /** Filament used by each CuraEngine extruder, in mm. */
+        val perExtruderMm: List<Double> = emptyList(),
+    )
 
     /**
      * CuraEngine's command line: the settings file, one "-e" per filament used (with the
@@ -149,10 +153,12 @@ object CuraGcode {
         } ?: 0
         var seconds: Double? = null
         var filament: Double? = null
+        var perExtruder: List<Double> = emptyList()
         fun scan(line: String) {
             if (line.startsWith(";TIME:")) line.substringAfter(':').trim().toDoubleOrNull()?.let { seconds = it }
             if (line.startsWith(";Filament used:")) {
-                line.substringAfter(':').trim().removeSuffix("m").split(',').firstOrNull()?.trim()?.toDoubleOrNull()?.let { filament = it * 1000 }
+                val each = line.substringAfter(':').split(',').mapNotNull { it.trim().removeSuffix("m").trim().toDoubleOrNull()?.times(1000) }
+                if (each.isNotEmpty()) { perExtruder = each; filament = each.sum() }
             }
         }
         header.forEach(::scan)
@@ -161,6 +167,7 @@ object CuraGcode {
                 var top = true
                 var changing: Int? = null
                 var lastZ = 0.0
+                var currentTool = initialTool
                 fun endTop(generated: String?) {
                     top = false
                     header.forEach { w.write(it); w.write("\n") }
@@ -190,6 +197,7 @@ object CuraGcode {
                             val from = tc.tools.getOrElse(changing!!) { changing!! }
                             val to = tc.tools.getOrElse(toE) { toE }
                             if (from != to) toolChange(from, to, lastZ, tc).forEach { w.write(it); w.write("\n") }
+                            currentTool = to
                             changing = null
                         }
                         continue
@@ -198,6 +206,7 @@ object CuraGcode {
                         line.startsWith(TC_FROM) -> changing = line.removePrefix(TC_FROM).trim().toIntOrNull() ?: 0
                         line.startsWith(TC_TO) -> Unit  // the first filament: chosen in the start G-code
                         line == INITIAL_TOOL_MARKER -> w.write("T$initialTool\n")
+                        line == UNLOAD_MARKER -> w.write("UNLOAD_FILAMENT T=$currentTool\n")
                         BARE_TOOL.matches(line) -> Unit  // CuraEngine's own tool selects: the Box routine does that
                         line == TOTAL_LAYER_MARKER -> w.write("SET_PRINT_STATS_INFO TOTAL_LAYER=$layers\n")
                         line.startsWith(";LAYER:") -> {
@@ -214,6 +223,6 @@ object CuraGcode {
                 }
             }
         }
-        return Info(layers, seconds, filament)
+        return Info(layers, seconds, filament, perExtruder)
     }
 }

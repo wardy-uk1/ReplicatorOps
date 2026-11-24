@@ -25,6 +25,10 @@ sealed interface SliceState {
         val layers: Int, val seconds: Double, val filamentMm: Double,
         /** 300 px PNG of the model, for the Files screen until the printer has read the file. */
         val thumbnail: File? = null,
+        /** Filament used by each tool (T number → mm). */
+        val toolMm: Map<Int, Double> = emptyMap(),
+        /** 512 px PNG for the printer's screen (packed into the .gcode.3mf). */
+        val picture: File? = null,
     ) : SliceState
     data class Failed(val message: String, val model: ModelFile?, val plate: Plate?) : SliceState
 }
@@ -134,11 +138,17 @@ class SlicerEngine(context: Context) {
         val png = thumb?.let { b64 ->
             runCatching { File(work, "$base-thumb.png").also { it.writeBytes(Base64.decode(b64, Base64.DEFAULT)) } }.getOrNull()
         }
+        val picture = runCatching {
+            mesh?.thumbnailBase64(512)?.let { b64 -> File(work, "$base-plate.png").also { it.writeBytes(Base64.decode(b64, Base64.DEFAULT)) } }
+        }.getOrNull()
+        val toolMm = info.perExtruderMm.withIndex().associate { (e, mm) -> tools.getOrElse(e) { e } to mm }
         return SliceState.Done(
             model, plate, target, thumbnail = png,
             layers = info.layers,
             seconds = info.seconds ?: log.seconds ?: 0.0,
             filamentMm = info.filamentMm ?: 0.0,
+            toolMm = toolMm,
+            picture = picture,
         )
     }
 

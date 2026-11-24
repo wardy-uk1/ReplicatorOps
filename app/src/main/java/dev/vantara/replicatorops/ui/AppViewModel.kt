@@ -29,6 +29,7 @@ import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.data.PrinterAlert
 import dev.vantara.replicatorops.slicer.ModelReader
 import dev.vantara.replicatorops.slicer.SliceSettings
+import dev.vantara.replicatorops.slicer.QidiPackage
 import dev.vantara.replicatorops.slicer.SliceState
 import dev.vantara.replicatorops.slicer.SlicerEngine
 import dev.vantara.replicatorops.slicer.Calibration
@@ -1574,27 +1575,58 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Point each filament at the Box slot chosen on the Slicer screen.
         val needs = filamentNeeds(done.plate)
         val map = _slotChoice.value.filterKeys { k -> needs.any { it.tool == k } }
-        if (map.isNotEmpty() && printer.value.box != null) {
+        val box = printer.value.box
+        if (map.isNotEmpty() && box != null) {
             viewModelScope.launch { runCatching { client.gcode(FilamentMapping.gcode(map)) } }
         }
-        val copy = File(getApplication<Application>().cacheDir, done.gcode.name).also { done.gcode.copyTo(it, overwrite = true) }
-        _loadState.value = LoadState.Ready(IncomingPattern(copy.name, copy, PatternKind.SLICED))
         val s = sliceSettings.value
-        beamPattern(
-            FileMeta(
-                thumbnailUrl = done.thumbnail?.let { "file://" + it.absolutePath },
-                estimatedSeconds = done.seconds.takeIf { it > 0 },
-                filamentMm = done.filamentMm.takeIf { it > 0 },
-                filamentGrams = null,
-                layerHeight = s.layerHeight,
-                objectHeight = done.plate.size.third.toDouble(),
-                slicer = "CuraEngine (Replicator Ops)",
-                // Indexed by tool number, as Moonraker reports them.
-                filamentTypes = (0..(needs.maxOfOrNull { it.tool } ?: 0)).map { t -> needs.firstOrNull { it.tool == t }?.type ?: s.filament },
-                filamentColors = (0..(needs.maxOfOrNull { it.tool } ?: 0)).map { t -> needs.firstOrNull { it.tool == t }?.color },
-                tools = needs.map { it.tool },
+        // The printer's screen reads QIDI Studio's ".gcode.3mf" (picture, time, weight, filaments), so pack it that way.
+        val filaments = needs.map { n ->
+            val slot = map[n.tool]?.let { i -> box?.slots?.getOrNull(i) }?.takeIf { it.loaded }
+            QidiPackage.Filament(
+                tool = n.tool,
+                type = n.type ?: s.filament,
+                color = slot?.color ?: n.color,
+                usedMm = done.toolMm[n.tool] ?: if (needs.size == 1) done.filamentMm else 0.0,
+                id = slot?.filamentId,
             )
-        )
+        }
+        val base = done.gcode.name.removeSuffix(".gcode")
+        val dir = getApplication<Application>().cacheDir
+        viewModelScope.launch {
+            _loadState.value = LoadState.Receiving
+            val packed = withContext(Dispatchers.IO) {
+                runCatching {
+                    val job = QidiPackage.Job(
+                        gcode = done.gcode, name = base, seconds = done.seconds, layers = done.layers,
+                        layerHeight = s.layerHeight, nozzleTemp = s.nozzleTemp, bedTemp = s.bedTemp,
+                        filaments = filaments, supports = s.supports,
+                        picture = done.picture?.takeIf { it.exists() }?.readBytes(),
+                        small = done.thumbnail?.takeIf { it.exists() }?.readBytes(),
+                    )
+                    File(dir, "$base.gcode.3mf").also { QidiPackage.write(job, it) }
+                }.getOrElse {
+                    // Plain G-code still prints; the printer's screen just shows less.
+                    File(dir, done.gcode.name).also { done.gcode.copyTo(it, overwrite = true) }
+                }
+            }
+            _loadState.value = LoadState.Ready(IncomingPattern(packed.name, packed, PatternKind.SLICED))
+            beamPattern(
+                FileMeta(
+                    thumbnailUrl = done.thumbnail?.let { "file://" + it.absolutePath },
+                    estimatedSeconds = done.seconds.takeIf { it > 0 },
+                    filamentMm = done.filamentMm.takeIf { it > 0 },
+                    filamentGrams = filaments.sumOf { it.grams }.takeIf { it > 0 },
+                    layerHeight = s.layerHeight,
+                    objectHeight = done.plate.size.third.toDouble(),
+                    slicer = "CuraEngine (Replicator Ops)",
+                    // Indexed by tool number, as Moonraker reports them.
+                    filamentTypes = (0..(needs.maxOfOrNull { it.tool } ?: 0)).map { t -> filaments.firstOrNull { it.tool == t }?.type ?: s.filament },
+                    filamentColors = (0..(needs.maxOfOrNull { it.tool } ?: 0)).map { t -> filaments.firstOrNull { it.tool == t }?.color },
+                    tools = needs.map { it.tool },
+                )
+            )
+        }
     }
 
     fun dismissLoad() {

@@ -124,7 +124,7 @@ fun StatusScreen(vm: AppViewModel) {
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    LcarsLabel(file.substringAfterLast('/').removeSuffix(".gcode"), color = s.text, size = 16.sp)
+                    LcarsLabel(file.substringAfterLast('/').removeSuffix(".3mf").removeSuffix(".gcode"), color = s.text, size = 16.sp)
                     Row(verticalAlignment = Alignment.Bottom) {
                         LcarsLabel("%.1f%%".format(p.progress * 100), color = s.accent, size = 28.sp, bold = true)
                         Spacer(Modifier.width(8.dp))
@@ -184,7 +184,7 @@ fun StatusScreen(vm: AppViewModel) {
         val ready = st as? AppViewModel.LayersState.Ready
         val live = ready?.layers?.let { l -> val i = l.layerAt(p.filePosition); i to (l.layers.getOrNull(i)?.doneAt(p.filePosition) ?: 0) }
         LayerPreviewDialog(
-            title = p.filename.orEmpty().substringAfterLast('/').removeSuffix(".gcode"),
+            title = p.filename.orEmpty().substringAfterLast('/').removeSuffix(".3mf").removeSuffix(".gcode"),
             layers = ready?.layers,
             loading = (st as? AppViewModel.LayersState.Loading)?.what ?: (st as? AppViewModel.LayersState.Failed)?.message,
             onDismiss = { showLive = false },
@@ -202,7 +202,7 @@ fun StatusScreen(vm: AppViewModel) {
             onDismissRequest = { showThumb = false },
             containerColor = Color.Black,
             modifier = Modifier.border(2.dp, s.nav[0], RoundedCornerShape(24.dp)),
-            title = { LcarsLabel(p.filename.orEmpty().substringAfterLast('/').removeSuffix(".gcode"), color = s.nav[0], size = 18.sp, bold = true) },
+            title = { LcarsLabel(p.filename.orEmpty().substringAfterLast('/').removeSuffix(".3mf").removeSuffix(".gcode"), color = s.nav[0], size = 18.sp, bold = true) },
             text = {
                 ZoomableBox(Modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF111111))) {
                     AsyncImage(
