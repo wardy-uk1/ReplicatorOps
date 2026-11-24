@@ -23,6 +23,8 @@ data class BoxSlot(
     val material: String?,
     /** ARGB colour, or null if unknown. */
     val color: Long?,
+    /** QIDI's filament id for this slot (QD_2_<vendor>_<filament>), as QIDI Studio builds it. */
+    val filamentId: String? = null,
 )
 
 data class BoxState(

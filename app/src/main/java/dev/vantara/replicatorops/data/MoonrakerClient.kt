@@ -461,7 +461,10 @@ class MoonrakerClient(
             val material = filamentName(info)
             val colour = info?.let { firstColour(it) } ?: (vars?.get("color_slot$i") as? JsonPrimitive)?.contentOrNull
             val inserted = flag(firstBox?.get("box_inserted_$i") as? JsonPrimitive) ?: flag(vars?.get("slot$i") as? JsonPrimitive)
-            BoxSlot(i, inserted ?: (material != null), material, parseColor(colour))
+            fun num(k: String) = (vars?.get(k) as? JsonPrimitive)?.contentOrNull?.trim('\'', '"', ' ')?.toIntOrNull()
+            val filamentNo = num("filament_slot$i")
+            val id = filamentNo?.takeIf { it > 0 }?.let { "QD_2_${num("vendor_slot$i") ?: 1}_$it" }
+            BoxSlot(i, inserted ?: (material != null), material, parseColor(colour), id)
         }
         val active = o["box_extras"].s("loaded_slot")?.let { LOADED_SLOT.find(it)?.groupValues?.get(1)?.toIntOrNull() }
         // The Box dryer is a heater_generic (heater_box1 on the Q2C) with an AHT20 sensor.

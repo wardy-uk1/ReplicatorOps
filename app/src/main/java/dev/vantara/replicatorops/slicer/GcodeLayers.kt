@@ -48,6 +48,20 @@ class GcodeLayers private constructor(val layers: List<Layer>) {
         /** Lines shorter than this are joined to the next (mm). */
         private const val MIN_LEN = 0.35f
 
+        /** A ".gcode.3mf" is a zip with Metadata/plate_N.gcode inside; plain G-code passes through. */
+        fun unzipped(raw: InputStream): InputStream {
+            val input = java.io.BufferedInputStream(raw, 64 * 1024)
+            input.mark(4)
+            val pk = input.read() == 'P'.code && input.read() == 'K'.code
+            input.reset()
+            if (!pk) return input
+            val zip = java.util.zip.ZipInputStream(input)
+            while (true) {
+                val e = zip.nextEntry ?: throw java.io.IOException("No G-code inside this 3MF")
+                if (!e.isDirectory && e.name.lowercase().endsWith(".gcode")) return zip
+            }
+        }
+
         fun read(input: InputStream, maxSegments: Int = 3_000_000): GcodeLayers {
             val layers = ArrayList<Layer>()
             var xs = Seg()
@@ -71,7 +85,7 @@ class GcodeLayers private constructor(val layers: List<Layer>) {
                 if (xs.size > 0) { layers += xs.build(layerZ, layerStart); total += xs.size }
                 xs = Seg(); layerStart = at; layerZ = z
             }
-            val reader = input.bufferedReader(Charsets.ISO_8859_1)
+            val reader = unzipped(input).bufferedReader(Charsets.ISO_8859_1)
             while (true) {
                 val raw = reader.readLine() ?: break
                 val lineStart = offset

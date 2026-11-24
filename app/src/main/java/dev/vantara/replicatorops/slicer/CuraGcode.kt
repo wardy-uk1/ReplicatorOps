@@ -38,7 +38,11 @@ object CuraGcode {
         }
     }
 
-    data class Info(val layers: Int, val seconds: Double?, val filamentMm: Double?)
+    data class Info(
+        val layers: Int, val seconds: Double?, val filamentMm: Double?,
+        /** Filament used by each CuraEngine extruder, in mm. */
+        val perExtruderMm: List<Double> = emptyList(),
+    )
 
     /**
      * CuraEngine's command line: the settings file, one "-e" per filament used (with the
@@ -149,10 +153,12 @@ object CuraGcode {
         } ?: 0
         var seconds: Double? = null
         var filament: Double? = null
+        var perExtruder: List<Double> = emptyList()
         fun scan(line: String) {
             if (line.startsWith(";TIME:")) line.substringAfter(':').trim().toDoubleOrNull()?.let { seconds = it }
             if (line.startsWith(";Filament used:")) {
-                line.substringAfter(':').trim().removeSuffix("m").split(',').firstOrNull()?.trim()?.toDoubleOrNull()?.let { filament = it * 1000 }
+                val each = line.substringAfter(':').split(',').mapNotNull { it.trim().removeSuffix("m").trim().toDoubleOrNull()?.times(1000) }
+                if (each.isNotEmpty()) { perExtruder = each; filament = each.sum() }
             }
         }
         header.forEach(::scan)
@@ -214,6 +220,6 @@ object CuraGcode {
                 }
             }
         }
-        return Info(layers, seconds, filament)
+        return Info(layers, seconds, filament, perExtruder)
     }
 }

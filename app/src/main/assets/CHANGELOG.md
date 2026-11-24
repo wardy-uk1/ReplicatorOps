@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.2.0-beta.4
+- Files sliced on the phone are now sent as a QIDI ".gcode.3mf", the way QIDI Studio sends them, so the printer's own screen shows the picture, print time and weight
+- The printer's "Match filament" screen now sees each filament's type and colour and matches it to the Box, instead of saying "external filament"
+- When you pick a Box slot on the Slicer screen, the file carries that slot's filament so the printer matches the same slot
+- The live print view can read ".gcode.3mf" print files
+
 ## 2.2.0-beta.3 · Stardate 202624.11
 - The standing-by notification now says "Monitoring subspace link to" your printer
 

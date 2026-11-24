@@ -201,7 +201,7 @@ private fun JobRow(j: HistoryJob, cost: Double) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(if (ok || j.status == "in_progress") s.accent else s.alert))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            LcarsLabel(j.filename.substringAfterLast('/').removeSuffix(".gcode"), color = s.text, size = 14.sp)
+            LcarsLabel(j.filename.substringAfterLast('/').removeSuffix(".3mf").removeSuffix(".gcode"), color = s.text, size = 14.sp)
             LcarsLabel(
                 "$status · ${formatDuration(j.printDuration)} · ${money(cost)} · ${SimpleDateFormat("d MMM", Locale.UK).format(Date((j.startTime * 1000).toLong()))}",
                 color = s.accent2, size = 12.sp,
