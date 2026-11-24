@@ -1,5 +1,11 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
@@ -144,7 +150,25 @@ fun LoadPatternDialog(vm: AppViewModel) {
 @Composable
 private fun FileName(name: String) {
     val s = LocalLcars.current
-    LcarsLabel(name, color = s.text, size = 17.sp, maxLines = 3)
+    // One line: shrink the text to fit (down to 11 sp); anything longer still slides across.
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val width = constraints.maxWidth
+        val size = remember(name, width) {
+            var sp = 17f
+            while (sp > 11f) {
+                val w = measurer.measure(
+                    name.uppercase(),
+                    TextStyle(fontFamily = LcarsFont, fontSize = sp.sp, letterSpacing = s.tracking.em),
+                    maxLines = 1, softWrap = false,
+                ).size.width
+                if (w <= width) break
+                sp -= 0.5f
+            }
+            sp
+        }
+        LcarsLabel(name, color = s.text, size = size.sp)
+    }
 }
 
 @Composable
