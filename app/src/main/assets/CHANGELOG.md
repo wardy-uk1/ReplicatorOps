@@ -4,7 +4,7 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
-## 2.1.0-beta.7
+## 2.1.0-beta.7 · Stardate 202624.11
 - Layer preview: after slicing, tap Layers to step through the print layer by layer, coloured by type (walls, infill, support…) or by filament, before you send it
 - Live print view on Status: the layer being printed, seen from above, fills in as the printer goes, with the nozzle marked. Tap it to look through every layer; "Now" jumps back to the current one. Works for files from any slicer
 
