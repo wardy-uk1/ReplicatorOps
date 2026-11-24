@@ -30,6 +30,8 @@ import dev.vantara.replicatorops.slicer.ModelReader
 import dev.vantara.replicatorops.slicer.SliceSettings
 import dev.vantara.replicatorops.slicer.SliceState
 import dev.vantara.replicatorops.slicer.SlicerEngine
+import dev.vantara.replicatorops.slicer.Plate
+import dev.vantara.replicatorops.slicer.ModelAdvisor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dev.vantara.replicatorops.data.FilamentMapping
@@ -1154,6 +1156,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { withContext(Dispatchers.IO) { ModelReader.read(file, name) } }
                 .onSuccess { model ->
                     _sliceSettings.value = SliceSettings.fromProject(model.projectSettings)
+                    _adviceDone.value = emptySet()
                     engine.open(model, 0)
                 }
                 .onFailure { e -> Chirp.deny(); say(e.message ?: "Couldn't read that model") }
@@ -1194,6 +1197,61 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 .onFailure { e -> Chirp.deny(); say(e.message ?: "Couldn't read that file") }
+        }
+    }
+
+    // ---- Ship's computer: offline suggestions for a stronger / more detailed print ----
+
+    private val _purpose = MutableStateFlow(ModelAdvisor.Purpose.EVERYDAY)
+    val purpose: StateFlow<ModelAdvisor.Purpose> = _purpose.asStateFlow()
+    fun setPurpose(p: ModelAdvisor.Purpose) { _purpose.value = p }
+
+    /** The analysis of the plate on screen (null while it's being worked out). */
+    private val _analysis = MutableStateFlow<Pair<Plate, ModelAdvisor.Analysis>?>(null)
+    val analysis: StateFlow<Pair<Plate, ModelAdvisor.Analysis>?> = _analysis.asStateFlow()
+    /** Suggestions already applied or dismissed for this model. */
+    private val _adviceDone = MutableStateFlow<Set<String>>(emptySet())
+    val adviceDone: StateFlow<Set<String>> = _adviceDone.asStateFlow()
+    private val _meshWorking = MutableStateFlow<String?>(null)
+    val meshWorking: StateFlow<String?> = _meshWorking.asStateFlow()
+
+    fun analysePlate(plate: Plate) {
+        if (_analysis.value?.first === plate) return
+        _analysis.value = null
+        viewModelScope.launch {
+            val a = withContext(Dispatchers.Default) { runCatching { ModelAdvisor.analyse(plate.triangles) }.getOrNull() } ?: return@launch
+            if (currentPlate() === plate) _analysis.value = plate to a
+        }
+    }
+
+    private fun currentPlate(): Plate? = when (val st = slicer?.state?.value) {
+        is SliceState.Ready -> st.plate
+        is SliceState.Done -> st.plate
+        is SliceState.Failed -> st.plate
+        else -> null
+    }
+
+    fun dismissAdvice(id: String) { _adviceDone.update { it + id } }
+
+    fun applyAdvice(s: ModelAdvisor.Suggestion) {
+        _adviceDone.update { it + s.id }
+        when (val c = s.change) {
+            is ModelAdvisor.Change.Settings -> _sliceSettings.value = c.apply(_sliceSettings.value)
+            is ModelAdvisor.Change.Rotate -> changeMesh("Turning the model") { ModelAdvisor.rotate(it, c.orientation) }
+            ModelAdvisor.Change.Smooth -> changeMesh("Smoothing the curves") { ModelAdvisor.smooth(it) }
+        }
+        Chirp.confirm()
+    }
+
+    private fun changeMesh(what: String, op: (FloatArray) -> FloatArray) {
+        val engine = slicer ?: return
+        val plate = currentPlate() ?: return
+        _meshWorking.value = what
+        viewModelScope.launch {
+            val tris = withContext(Dispatchers.Default) { runCatching { op(plate.triangles) }.getOrNull() }
+            _meshWorking.value = null
+            if (tris == null) { Chirp.deny(); say("Couldn't change the model"); return@launch }
+            engine.replacePlate(Plate(plate.number, plate.name, plate.objectNames, tris, plate.thumbnail))
         }
     }
 

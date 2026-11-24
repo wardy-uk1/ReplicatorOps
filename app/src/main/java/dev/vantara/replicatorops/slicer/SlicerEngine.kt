@@ -59,6 +59,13 @@ class SlicerEngine(context: Context) {
         _state.value = SliceState.Ready(model, plate)
     }
 
+    /** Swaps the shown plate for a changed copy (turned or smoothed by the ship's computer). */
+    fun replacePlate(plate: Plate) {
+        val (model, _) = currentModel() ?: return
+        cancelRunning()
+        _state.value = SliceState.Ready(model, plate)
+    }
+
     fun slice(settings: SliceSettings) {
         val (model, plate) = currentModel() ?: return
         cancelRunning()

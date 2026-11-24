@@ -24,8 +24,8 @@ class CuraSlicingTest {
 
     private val variants = mapOf(
         "defaults" to SliceSettings(),
-        "tree" to SliceSettings(supports = true, treeSupports = true, brim = 5.0, layerHeight = 0.24, walls = 3, infill = 20),
-        "ironing" to SliceSettings(ironing = true, infillPattern = "gyroid", seam = "back", infill = 0, topLayers = 4),
+        "tree" to SliceSettings(supports = true, treeSupports = true, brim = 5.0, layerHeight = 0.24, walls = 3, infill = 20, xyOffset = 0.1),
+        "ironing" to SliceSettings(ironing = true, infillPattern = "gyroid", seam = "back", infill = 0, topLayers = 4, fuzzySkin = true, adaptiveLayers = true),
         "solid" to SliceSettings(infill = 100, fan = 0, zHop = 0.0, retraction = 0.0, layerHeight = 0.12, firstLayerHeight = 0.16,
             supports = true, treeSupports = false, supportAngle = 45, infillPattern = "lightning"),
     )

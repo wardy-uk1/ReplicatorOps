@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.runtime.LaunchedEffect
+import dev.vantara.replicatorops.slicer.ModelAdvisor
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -175,6 +177,9 @@ private fun Body(vm: AppViewModel, state: SliceState, model: Pair<ModelFile, Pla
     Spacer(Modifier.height(4.dp))
     LcarsLabel(settings.source, color = s.hint, size = 12.sp)
 
+    // ---- Ship's computer: suggestions ---------------------------------------------------
+    ComputerCard(vm, plate, settings, busy)
+
     // ---- Settings in fold-away sections -------------------------------------------
     SettingsSections(settings, enabled = !busy) { vm.setSliceSettings(it) }
     Spacer(Modifier.height(10.dp))
@@ -278,6 +283,16 @@ private fun SettingsSections(cfg: SliceSettings, enabled: Boolean, onChange: (Sl
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             SliceSettings.SEAMS.forEach { (id, label) -> LcarsChip(label, selected = cfg.seam == id) { set(cfg.copy(seam = id)) } }
         }
+        SubLabel("Adaptive layers (finer on curves)")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LcarsChip("Off", selected = !cfg.adaptiveLayers) { set(cfg.copy(adaptiveLayers = false)) }
+            LcarsChip("On", selected = cfg.adaptiveLayers) { set(cfg.copy(adaptiveLayers = true)) }
+        }
+        SubLabel("Fuzzy skin (textured outside)")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LcarsChip("Off", selected = !cfg.fuzzySkin) { set(cfg.copy(fuzzySkin = false)) }
+            LcarsChip("On", selected = cfg.fuzzySkin) { set(cfg.copy(fuzzySkin = true)) }
+        }
         SubLabel("Ironing (smooth top surfaces)")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             LcarsChip("Off", selected = !cfg.ironing) { set(cfg.copy(ironing = false)) }
@@ -303,6 +318,12 @@ private fun SettingsSections(cfg: SliceSettings, enabled: Boolean, onChange: (Sl
             valueRange = 0f..100f, steps = 19, enabled = enabled,
             colors = SliderDefaults.colors(thumbColor = s.accent, activeTrackColor = s.accent, inactiveTrackColor = s.dim),
         )
+        SubLabel("Thicken thin parts (holes stay the same)")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(0.0 to "Off", 0.1 to "+0.1 mm", 0.2 to "+0.2 mm").forEach { (v, label) ->
+                LcarsChip(label, selected = abs(cfg.xyOffset - v) < 0.001) { set(cfg.copy(xyOffset = v)) }
+            }
+        }
         SubLabel("Pattern")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             SliceSettings.INFILL_PATTERNS.forEach { (id, label) -> LcarsChip(label, selected = cfg.infillPattern == id) { set(cfg.copy(infillPattern = id)) } }
@@ -393,5 +414,67 @@ private fun RoundKey(text: String, enabled: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         LcarsLabel(text, color = Color.Black, size = 18.sp, bold = true)
+    }
+}
+
+
+/**
+ * The ship's computer: checks the model on the phone and suggests changes for a stronger
+ * or more detailed print. Settings changes apply at once; turning and smoothing change the
+ * model itself (shown in the viewscreen).
+ */
+@Composable
+private fun ComputerCard(vm: AppViewModel, plate: Plate, settings: SliceSettings, busy: Boolean) {
+    val s = LocalLcars.current
+    val purpose by vm.purpose.collectAsState()
+    val analysis by vm.analysis.collectAsState()
+    val done by vm.adviceDone.collectAsState()
+    val working by vm.meshWorking.collectAsState()
+    LaunchedEffect(plate) { vm.analysePlate(plate) }
+
+    Spacer(Modifier.height(10.dp))
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).border(2.dp, s.nav[1], RoundedCornerShape(14.dp)).padding(10.dp),
+    ) {
+        LcarsLabel("COMPUTER ANALYSIS", color = s.nav[1], size = 16.sp, bold = true)
+        SubLabel("What's it for?")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            ModelAdvisor.Purpose.entries.forEach { p -> LcarsChip(p.label, selected = purpose == p) { vm.setPurpose(p) } }
+        }
+        val a = analysis?.takeIf { it.first === plate }?.second
+        when {
+            working != null -> LcarsLabel("$working…", color = s.accent2, size = 14.sp, modifier = Modifier.padding(top = 8.dp))
+            a == null -> LcarsLabel("Analysing the model…", color = s.accent2, size = 14.sp, modifier = Modifier.padding(top = 8.dp))
+            else -> {
+                val list = ModelAdvisor.suggest(a, settings, purpose).filter { it.id !in done }
+                LcarsLabel(
+                    buildString {
+                        append("%,d triangles".format(a.triangles))
+                        a.thinWall?.let { append(" · thinnest walls about %.1f mm".format(it)) }
+                        append(" · %.0f mm² on the bed".format(a.bedContact))
+                    },
+                    color = s.hint, size = 12.sp, maxLines = 2, modifier = Modifier.padding(top = 6.dp),
+                )
+                if (list.isEmpty()) {
+                    LcarsLabel("No changes recommended for a ${purpose.label.lowercase()} print.", color = s.text, size = 14.sp,
+                        maxLines = 2, modifier = Modifier.padding(top = 6.dp))
+                } else {
+                    list.forEach { sug ->
+                        Spacer(Modifier.height(8.dp))
+                        LcarsLabel(sug.title, color = s.accent, size = 15.sp, bold = true)
+                        LcarsLabel(sug.why, color = s.text, size = 12.sp, maxLines = 5)
+                        Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LcarsButton(if (sug.change is ModelAdvisor.Change.Settings) "Apply" else "Change model",
+                                color = s.accent, height = 32.dp, enabled = !busy) { vm.applyAdvice(sug) }
+                            LcarsButton("Dismiss", color = s.frameAlt, height = 32.dp) { vm.dismissAdvice(sug.id) }
+                        }
+                    }
+                    if (list.size > 1 && list.all { it.change is ModelAdvisor.Change.Settings }) {
+                        Spacer(Modifier.height(8.dp))
+                        LcarsButton("Apply all", color = s.nav[1], height = 34.dp, enabled = !busy) { list.forEach { vm.applyAdvice(it) } }
+                    }
+                }
+            }
+        }
     }
 }

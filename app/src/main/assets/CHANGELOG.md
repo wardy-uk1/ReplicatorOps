@@ -4,6 +4,12 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.0-beta.1
+- Ship's computer on the Slicer: it checks each model on the phone (no internet) and suggests how to print it stronger or with more detail. Each suggestion says why, with Apply and Dismiss buttons
+- Tell it what the print is for (Display, Everyday or Strong) and it tailors the suggestions
+- It spots overhangs, thin walls, a small footprint on the bed, flat tops and coarse curves. It can turn the model a better way up and smooth coarse curves, and both changes show in the viewscreen
+- New settings: thicken thin parts (holes stay the same size), adaptive layers and fuzzy skin
+
 ## 2.0.1 · Stardate 202623.11
 - The screen stays on while the camera is showing, in the Visual Sensors window and full screen
 - Patterns sliced on the phone keep their preview picture, print time and filament in Files. If the printer hasn't read them from the file, the app asks it to look again, and otherwise uses the details it saved when it sliced the file

@@ -50,6 +50,12 @@ data class SliceSettings(
     val ironing: Boolean = false,
     /** Cura z_seam_type: back, shortest, random, sharpest_corner. */
     val seam: String = "sharpest_corner",
+    /** Grows every outline by this much (mm), holes kept the same size: thickens thin parts. */
+    val xyOffset: Double = 0.0,
+    /** Fine random texture on the outside walls. */
+    val fuzzySkin: Boolean = false,
+    /** Thinner layers on curves and slopes, thicker on straight walls. */
+    val adaptiveLayers: Boolean = false,
     /** Where the defaults came from, for the screen. */
     val source: String = "QIDI Q2C · PLA defaults",
 ) {
@@ -157,6 +163,11 @@ data class SliceSettings(
         put("infill_pattern", infillPattern)
         put("z_seam_type", seam)
         put("ironing_enabled", ironing)
+        put("magic_fuzzy_skin_enabled", fuzzySkin)
+        put("adaptive_layer_height_enabled", adaptiveLayers)
+        put("xy_offset", xyOffset)
+        put("xy_offset_layer_0", xyOffset)
+        put("hole_xy_offset", xyOffset)
         // Supports & adhesion
         put("support_enable", supports)
         put("support_structure", if (treeSupports) "tree" else "normal")
