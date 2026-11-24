@@ -4,6 +4,11 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.1.0-beta.4
+- Status: tap the print's picture to see it large, then pinch to zoom
+- Thermal log keeps an hour. Drag sideways to scroll back through it, pick 5, 15, 30 or 60 minutes to see more at once, and double-tap to jump back to now. Times are marked along the bottom
+- Bed mesh profiles: see every mesh saved on the printer and tap one to view its map. Load it, remove it, save the mesh in use under a name, or measure a new named profile (e.g. one per bed temperature or plate)
+
 ## 2.1.0-beta.3 · Stardate 202624.11
 - No more "Couldn't list files: timed out" after sending a print. The printer is slow to answer while it reads a file that has just arrived, so the app now waits, tries again and refreshes quietly. Only the Refresh button reports a real failure
 - Less work for the printer: the app only asks it to re-read a file once, for a file it has just sent, instead of for every file without a preview

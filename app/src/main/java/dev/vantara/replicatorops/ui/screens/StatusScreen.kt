@@ -1,5 +1,10 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import dev.vantara.replicatorops.ui.lcars.Chirp
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +52,7 @@ fun StatusScreen(vm: AppViewModel) {
     val temps by vm.temps.collectAsState()
     var confirmCancel by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
+    var showThumb by remember { mutableStateOf(false) }
     var showTargets by remember { mutableStateOf(false) }
     var confirmNext by remember { mutableStateOf(false) }
 
@@ -100,7 +106,11 @@ fun StatusScreen(vm: AppViewModel) {
             LcarsSectionHeader("Replication", color = s.nav[0])
             val m = meta[file]
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(64.dp).background(Color(0xFF111111)), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(64.dp).background(Color(0xFF111111))
+                        .clickable(enabled = m?.thumbnailUrl != null) { Chirp.tap(); showThumb = true },
+                    contentAlignment = Alignment.Center,
+                ) {
                     if (m?.thumbnailUrl != null) {
                         AsyncImage(
                             model = m.thumbnailUrl,
@@ -166,6 +176,29 @@ fun StatusScreen(vm: AppViewModel) {
     }
 
     if (showCamera) CameraDialog(vm) { showCamera = false }
+
+    // Tap the print's picture to see it large (pinch to zoom).
+    val thumbUrl = p.filename?.let { meta[it]?.thumbnailUrl }
+    if (showThumb && thumbUrl != null) {
+        AlertDialog(
+            onDismissRequest = { showThumb = false },
+            containerColor = Color.Black,
+            modifier = Modifier.border(2.dp, s.nav[0], RoundedCornerShape(24.dp)),
+            title = { LcarsLabel(p.filename.orEmpty().substringAfterLast('/').removeSuffix(".gcode"), color = s.nav[0], size = 18.sp, bold = true) },
+            text = {
+                ZoomableBox(Modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF111111))) {
+                    AsyncImage(
+                        model = thumbUrl,
+                        imageLoader = vm.imageLoader,
+                        contentDescription = "Model picture",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            },
+            confirmButton = { LcarsButton("Close", color = s.frameAlt) { showThumb = false } },
+        )
+    }
 
     if (showTargets) TargetLockDialog(vm) { showTargets = false }
     if (confirmNext) {

@@ -1,5 +1,14 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import dev.vantara.replicatorops.ui.lcars.LcarsFont
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -200,32 +209,115 @@ private fun MacroRow(name: String, description: String?, starred: Boolean, enabl
     }
 }
 
-/** Bed mesh: 3D map of the bed's levelling, plus a button to measure it again. */
+/**
+ * Bed mesh: 3D map of the bed's levelling, the profiles saved on the printer (view, load,
+ * remove), saving the current mesh under a name, and measuring the bed again.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BedMeshSection(vm: AppViewModel) {
     val s = LocalLcars.current
     val p by vm.printer.collectAsState()
-    var confirm by remember { mutableStateOf(false) }
+    var confirm by remember { mutableStateOf<MeshAction?>(null) }
+    var naming by remember { mutableStateOf<MeshAction?>(null) }
+    // Which mesh the map shows: null = the one in use.
+    var viewing by remember { mutableStateOf<String?>(null) }
     LcarsSectionHeader("Bed mesh", color = s.nav[0])
-    val mesh = p.bedMesh
-    if (mesh == null) {
+    val active = p.bedMesh
+    val saved = p.meshProfiles
+    val shown = viewing?.let { saved[it] } ?: active
+    val idle = p.ready && !p.isBusy
+
+    if (active != null || saved.isNotEmpty()) {
+        LcarsLabel("Profiles", color = s.accent2, size = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (active != null) LcarsChip("In use: ${active.profile}", selected = viewing == null) { viewing = null }
+            saved.keys.forEach { name -> LcarsChip(name, selected = viewing == name) { viewing = name } }
+        }
+        Spacer(Modifier.height(6.dp))
+    }
+    if (shown == null) {
         LcarsLabel("No bed mesh loaded. Calibrate to measure the bed.", color = s.hint, size = 14.sp, maxLines = 2)
     } else {
         // Keep the map a sensible size on wide tablets and landscape.
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-            BedMeshView(mesh, Modifier.widthIn(max = 460.dp).fillMaxWidth())
+            BedMeshView(shown, Modifier.widthIn(max = 460.dp).fillMaxWidth())
         }
     }
     Spacer(Modifier.height(8.dp))
-    LcarsButton("Calibrate bed mesh", color = s.nav[0], height = 38.dp, enabled = p.ready && !p.isBusy) { confirm = true }
-    if (confirm) {
-        LcarsConfirm(
-            title = "Calibrate bed mesh?",
-            text = "The printer homes and probes the whole bed. This takes a few minutes; heat the bed first for the most accurate result.",
-            confirmLabel = "Calibrate",
-            color = s.nav[0],
-            onConfirm = { confirm = false; vm.calibrateMesh() },
-            onDismiss = { confirm = false },
+    val v = viewing
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (v != null) {
+            LcarsButton("Load \"$v\"", color = s.nav[0], height = 38.dp, enabled = idle) { vm.loadMeshProfile(v); viewing = null }
+            LcarsButton("Remove", color = s.alert, height = 38.dp, enabled = idle) { confirm = MeshAction.Remove(v) }
+        } else {
+            LcarsButton("Calibrate bed mesh", color = s.nav[0], height = 38.dp, enabled = idle) { confirm = MeshAction.Calibrate }
+            if (active != null) LcarsButton("Save as profile", color = s.nav[1], height = 38.dp, enabled = idle) { naming = MeshAction.Save("") }
+            LcarsButton("New profile", color = s.frameAlt, height = 38.dp, enabled = idle) { naming = MeshAction.CalibrateAs("") }
+        }
+    }
+    LcarsLabel(
+        "KAMP measures just the print area at the start of each print. Saved profiles keep a whole-bed map, " +
+            "e.g. one per bed temperature or plate. Saving or removing a profile restarts Klipper.",
+        color = s.hint, size = 11.sp, maxLines = 4, modifier = Modifier.padding(top = 6.dp),
+    )
+
+    naming?.let { action ->
+        var text by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { naming = null },
+            containerColor = Color.Black,
+            modifier = Modifier.border(2.dp, s.nav[0], RoundedCornerShape(24.dp)),
+            title = { LcarsLabel(if (action is MeshAction.Save) "Save mesh as" else "Measure a new profile", color = s.nav[0], size = 20.sp, bold = true) },
+            text = {
+                Column {
+                    LcarsLabel(
+                        if (action is MeshAction.Save) "Saves the mesh in use under this name, then restarts Klipper."
+                        else "Homes, probes the whole bed and saves it under this name, then restarts Klipper. Heat the bed first for the most accurate result.",
+                        color = s.hint, size = 13.sp, maxLines = 4,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { t -> text = t.filter { it.isLetterOrDigit() || it == '_' || it == '-' || it == ' ' }.take(32) },
+                        singleLine = true,
+                        textStyle = TextStyle(fontFamily = LcarsFont, fontSize = 18.sp, color = s.text),
+                        label = { LcarsLabel("Profile name, e.g. pei_100c", color = s.accent2, size = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                LcarsButton(if (action is MeshAction.Save) "Save" else "Measure", color = s.nav[0], enabled = text.isNotBlank()) {
+                    if (action is MeshAction.Save) vm.saveMeshProfile(text) else vm.calibrateMeshAs(text)
+                    naming = null
+                }
+            },
+            dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { naming = null } },
         )
     }
+    confirm?.let { action ->
+        LcarsConfirm(
+            title = if (action is MeshAction.Remove) "Remove \"${action.name}\"?" else "Calibrate bed mesh?",
+            text = if (action is MeshAction.Remove) "Deletes this saved profile from the printer and restarts Klipper."
+                else "The printer homes and probes the whole bed. This takes a few minutes; heat the bed first for the most accurate result.",
+            confirmLabel = if (action is MeshAction.Remove) "Remove" else "Calibrate",
+            color = if (action is MeshAction.Remove) s.alert else s.nav[0],
+            onConfirm = {
+                confirm = null
+                when (action) {
+                    is MeshAction.Remove -> { vm.removeMeshProfile(action.name); viewing = null }
+                    else -> vm.calibrateMesh()
+                }
+            },
+            onDismiss = { confirm = null },
+        )
+    }
+}
+
+private sealed interface MeshAction {
+    data object Calibrate : MeshAction
+    data class Remove(val name: String) : MeshAction
+    data class Save(val name: String) : MeshAction
+    data class CalibrateAs(val name: String) : MeshAction
 }

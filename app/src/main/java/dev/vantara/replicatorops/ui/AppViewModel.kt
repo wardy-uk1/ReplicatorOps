@@ -633,6 +633,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun calibrateMesh() = gcode("G28\nBED_MESH_CALIBRATE", "Bed mesh calibration started")
 
+    /** Bed mesh profiles saved on the printer. Saving or removing one needs SAVE_CONFIG, which restarts Klipper. */
+    private fun meshName(name: String) = name.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").take(32)
+    fun loadMeshProfile(name: String) = gcode("BED_MESH_PROFILE LOAD=${meshName(name)}", "Bed mesh \"$name\" loaded")
+    fun saveMeshProfile(name: String) =
+        gcode("BED_MESH_PROFILE SAVE=${meshName(name)}\nSAVE_CONFIG", "Bed mesh saved as \"${meshName(name)}\". Klipper is restarting")
+    fun removeMeshProfile(name: String) =
+        gcode("BED_MESH_PROFILE REMOVE=${meshName(name)}\nSAVE_CONFIG", "Bed mesh \"$name\" removed. Klipper is restarting")
+    fun calibrateMeshAs(name: String) =
+        gcode("G28\nBED_MESH_CALIBRATE PROFILE=${meshName(name)}\nSAVE_CONFIG", "Bed mesh \"${meshName(name)}\" measured and saved. Klipper is restarting")
+
     fun runMacro(name: String) = gcode(name, "Subroutine $name engaged")
 
     fun sensorSweep() {
@@ -1392,7 +1402,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun dismissRetrieve() { _retrieveState.value = RetrieveState.Idle }
 
     companion object {
-        const val TEMP_SAMPLES = 900
+        const val TEMP_SAMPLES = 1800  // an hour at one sample every 2 s
     }
 }
 

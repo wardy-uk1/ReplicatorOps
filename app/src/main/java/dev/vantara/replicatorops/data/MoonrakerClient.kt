@@ -361,6 +361,7 @@ class MoonrakerClient(
             bedMax = xy(th?.get("axis_maximum")),
             systems = parseSystems(o),
             bedMesh = parseMesh(o["bed_mesh"]),
+            meshProfiles = parseMeshProfiles(o["bed_mesh"]),
         )
     }
 
@@ -382,6 +383,21 @@ class MoonrakerClient(
             max = xy(m["mesh_max"]) ?: (1.0 to 1.0),
             heights = heights,
         )
+    }
+
+    /** bed_mesh.profiles: name -> { points, mesh_params { min_x, max_x, min_y, max_y } }. */
+    private fun parseMeshProfiles(m: JsonObject?): Map<String, BedMesh> {
+        val profiles = m?.get("profiles") as? JsonObject ?: return emptyMap()
+        return profiles.mapNotNull { (name, v) ->
+            val o = v as? JsonObject ?: return@mapNotNull null
+            val pts = (o["points"] as? JsonArray).orEmpty().mapNotNull { row ->
+                (row as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.doubleOrNull }?.takeIf { it.isNotEmpty() }
+            }
+            if (pts.size < 2) return@mapNotNull null
+            val p = o["mesh_params"] as? JsonObject
+            fun d(k: String) = (p?.get(k) as? JsonPrimitive)?.doubleOrNull
+            name to BedMesh(name, (d("min_x") ?: 0.0) to (d("min_y") ?: 0.0), (d("max_x") ?: 1.0) to (d("max_y") ?: 1.0), pts)
+        }.toMap().toSortedMap()
     }
 
     private fun parseObjects(eo: JsonObject?): List<PrintObject> =

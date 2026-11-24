@@ -92,6 +92,8 @@ data class PrinterState(
     val systems: ShipSystems = ShipSystems(),
     /** Active bed mesh, or null if none is loaded. */
     val bedMesh: BedMesh? = null,
+    /** Bed meshes saved on the printer (printer.cfg), by profile name. */
+    val meshProfiles: Map<String, BedMesh> = emptyMap(),
     /** Klipper gcode_macro names, minus hidden ones starting with "_". */
     val macros: List<String> = emptyList(),
 ) {

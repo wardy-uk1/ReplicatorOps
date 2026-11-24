@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
@@ -11,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
@@ -105,36 +108,93 @@ fun TempTile(label: String, current: Double?, target: Double?, color: Color) {
     }
 }
 
-/** Nozzle and bed temperatures over time, 0-300 °C. */
+/**
+ * Nozzle and bed temperatures over time, 0-300 °C (one sample every 2 s, up to an hour).
+ * Shows the last 5 minutes; drag sideways to scroll back, pick 5/15/30/60 min to see more,
+ * double-tap to jump back to now. Up-and-down drags still scroll the page.
+ */
 @Composable
 fun TempChart(samples: List<TempSample>, modifier: Modifier = Modifier) {
     val s = LocalLcars.current
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(color = s.hint, fontSize = 10.sp, fontFamily = LcarsFont)
-    Canvas(
-        modifier.fillMaxWidth().height(120.dp)
-            .semantics { contentDescription = "Temperature graph for the last 30 minutes" }
-    ) {
-        val left = 30.dp.toPx()
-        val bottom = size.height - 6.dp.toPx()
-        val top = 6.dp.toPx()
-        fun y(v: Float) = bottom - (v.coerceIn(0f, 300f) / 300f) * (bottom - top)
-        for (v in listOf(0, 100, 200, 300)) {
-            drawLine(s.dim, Offset(left, y(v.toFloat())), Offset(size.width, y(v.toFloat())), 1f)
-            drawText(measurer, "$v°", Offset(0f, y(v.toFloat()) - 7.dp.toPx()), labelStyle)
-        }
-        if (samples.size < 2) return@Canvas
-        val step = (size.width - left) / (samples.size - 1)
-        fun line(pick: (TempSample) -> Float, color: Color) {
-            val path = Path()
-            samples.forEachIndexed { i, smp ->
-                val x = left + i * step
-                if (i == 0) path.moveTo(x, y(pick(smp))) else path.lineTo(x, y(pick(smp)))
+    val secondsPerSample = 2f
+    // How many samples fit across, and how far back from now the right edge is (0 = following now).
+    var window by remember { mutableFloatStateOf(150f) }
+    var back by remember { mutableFloatStateOf(0f) }
+    var plotWidth by remember { mutableFloatStateOf(1f) }
+    val count = samples.size
+    fun clampBack(b: Float) = b.coerceIn(0f, (count - window).coerceAtLeast(0f))
+    Column(modifier) {
+        Canvas(
+            Modifier.fillMaxWidth().height(150.dp)
+                .semantics { contentDescription = "Temperature graph. Drag sideways to scroll back in time" }
+                .pointerInput(count) {
+                    detectHorizontalDragGestures { change, dx ->
+                        change.consume()
+                        back = clampBack(back + dx / plotWidth * window)
+                    }
+                }
+                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { back = 0f }) }
+        ) {
+            val left = 30.dp.toPx()
+            val bottom = size.height - 18.dp.toPx()
+            val top = 6.dp.toPx()
+            plotWidth = size.width - left
+            fun y(v: Float) = bottom - (v.coerceIn(0f, 300f) / 300f) * (bottom - top)
+            for (v in listOf(0, 100, 200, 300)) {
+                drawLine(s.dim, Offset(left, y(v.toFloat())), Offset(size.width, y(v.toFloat())), 1f)
+                drawText(measurer, "$v°", Offset(0f, y(v.toFloat()) - 7.dp.toPx()), labelStyle)
             }
-            drawPath(path, color, style = Stroke(width = 2.5.dp.toPx()))
+            if (count < 2) return@Canvas
+            val b = clampBack(back)
+            val endIdx = count - 1 - b          // sample at the right edge (fractional)
+            val startIdx = endIdx - window      // sample at the left edge
+            val px = plotWidth / window
+            fun x(i: Int) = left + (i - startIdx) * px
+            // Time marks along the bottom.
+            val span = window * secondsPerSample
+            val stepSec = listOf(30, 60, 120, 300, 600, 900, 1800).firstOrNull { span / it <= 5 } ?: 1800
+            var t = (b * secondsPerSample / stepSec).toInt() * stepSec
+            while (t <= (b + window) * secondsPerSample) {
+                val xx = left + plotWidth - (t / secondsPerSample - b) * px
+                if (xx in left..size.width) {
+                    drawLine(s.dim, Offset(xx, bottom), Offset(xx, bottom + 4.dp.toPx()), 1f)
+                    val label = if (t == 0) "now" else if (t % 60 == 0) "-${t / 60}m" else "-${t / 60}m${t % 60}s"
+                    val w = measurer.measure(label, labelStyle).size.width
+                    drawText(measurer, label, Offset((xx - w / 2f).coerceIn(left, size.width - w), bottom + 4.dp.toPx()), labelStyle)
+                }
+                t += stepSec
+            }
+            val from = maxOf(0, kotlin.math.floor(startIdx).toInt())
+            val to = minOf(count - 1, kotlin.math.ceil(endIdx).toInt())
+            if (to <= from) return@Canvas
+            clipRect(left = left) {
+                fun line(pick: (TempSample) -> Float, color: Color) {
+                    val path = Path()
+                    for (i in from..to) {
+                        if (i == from) path.moveTo(x(i), y(pick(samples[i]))) else path.lineTo(x(i), y(pick(samples[i])))
+                    }
+                    drawPath(path, color, style = Stroke(width = 2.5.dp.toPx()))
+                }
+                line({ it.bed }, s.nav[2])
+                line({ it.nozzle }, s.accent)
+            }
         }
-        line({ it.bed }, s.nav[2])
-        line({ it.nozzle }, s.accent)
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf(5, 15, 30, 60).forEach { m ->
+                LcarsChip("$m min", selected = kotlin.math.abs(window - m * 30f) < 1f) {
+                    window = m * 30f; back = clampBack(back)
+                }
+                Spacer(Modifier.width(6.dp))
+            }
+        }
+        val mins = (count * secondsPerSample / 60).toInt()
+        LcarsLabel(
+            (if (back > 0.5f) "Scrolled back · double-tap for now" else "Drag sideways to scroll back") +
+                if (mins > 0) " · $mins min recorded" else "",
+            color = s.hint, size = 11.sp, modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 
