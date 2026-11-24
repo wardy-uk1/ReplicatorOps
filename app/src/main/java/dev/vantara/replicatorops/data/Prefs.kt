@@ -76,6 +76,28 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("chirps", true)
         set(v) = sp.edit().putBoolean("chirps", v).apply()
 
+    /** Computer voice: the phone's text-to-speech voice (null = default), pitch, speed and chirp. */
+    var voiceName: String?
+        get() = sp.getString("voice_name", null)
+        set(v) = sp.edit().putString("voice_name", v).apply()
+    var voicePitch: Float
+        get() = sp.getFloat("voice_pitch", 0.92f)
+        set(v) = sp.edit().putFloat("voice_pitch", v).apply()
+    var voiceRate: Float
+        get() = sp.getFloat("voice_rate", 0.9f)
+        set(v) = sp.edit().putFloat("voice_rate", v).apply()
+    var voiceChirp: Boolean
+        get() = sp.getBoolean("voice_chirp", true)
+        set(v) = sp.edit().putBoolean("voice_chirp", v).apply()
+
+    /** Failure spotter (camera checks during prints) and how easily it raises the alarm. */
+    var failureSpotter: Boolean
+        get() = sp.getBoolean("failure_spotter", true)
+        set(v) = sp.edit().putBoolean("failure_spotter", v).apply()
+    var failureSensitivity: String
+        get() = sp.getString("failure_sensitivity", "MEDIUM") ?: "MEDIUM"
+        set(v) = sp.edit().putString("failure_sensitivity", v).apply()
+
     /** Double red alert sounds on the alarm volume, through Do Not Disturb. */
     var alertThroughDnd: Boolean
         get() = sp.getBoolean("alert_through_dnd", true)

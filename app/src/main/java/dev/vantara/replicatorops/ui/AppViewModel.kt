@@ -612,29 +612,75 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    private var pendingSpeech: String? = null
     private val _confirmAbort = MutableStateFlow(false)
     /** True when a voice "abort" is waiting for the on-screen confirmation. */
     val confirmAbort: StateFlow<Boolean> = _confirmAbort.asStateFlow()
     fun dismissAbort() { _confirmAbort.value = false }
 
-    /** Speaks a reply (and shows it), in British English where available. */
-    fun speak(text: String) {
-        say(text)
+    /** A text-to-speech voice on this phone. */
+    data class VoiceOption(val name: String, val label: String, val offline: Boolean)
+
+    private val _voices = MutableStateFlow<List<VoiceOption>>(emptyList())
+    /** English voices installed on the phone, best quality first. */
+    val voices: StateFlow<List<VoiceOption>> = _voices.asStateFlow()
+    private val _voiceSettings = MutableStateFlow(VoiceSettings(prefs.voiceName, prefs.voicePitch, prefs.voiceRate, prefs.voiceChirp))
+    val voiceSettings: StateFlow<VoiceSettings> = _voiceSettings.asStateFlow()
+
+    data class VoiceSettings(val name: String?, val pitch: Float, val rate: Float, val chirp: Boolean)
+
+    fun setVoice(name: String?) { prefs.voiceName = name; _voiceSettings.update { it.copy(name = name) }; applyVoice() }
+    fun setVoicePitch(p: Float) { prefs.voicePitch = p; _voiceSettings.update { it.copy(pitch = p) }; applyVoice() }
+    fun setVoiceRate(r: Float) { prefs.voiceRate = r; _voiceSettings.update { it.copy(rate = r) }; applyVoice() }
+    fun setVoiceChirp(on: Boolean) { prefs.voiceChirp = on; _voiceSettings.update { it.copy(chirp = on) } }
+
+    /** Says a test line in the chosen voice (also loads the voice list the first time). */
+    fun previewVoice() = speak("Computer online. All systems are functioning within normal parameters.", show = false)
+
+    /** Loads the voice list without speaking. */
+    fun loadVoices() = ensureTts {}
+
+    private fun ensureTts(then: () -> Unit) {
         val engine = tts
-        if (engine != null && ttsReady) {
-            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "replicator")
-            return
+        if (engine != null && ttsReady) { then(); return }
+        if (engine != null) return
+        tts = TextToSpeech(getApplication()) { status ->
+            ttsReady = status == TextToSpeech.SUCCESS
+            if (ttsReady) {
+                listVoices()
+                applyVoice()
+                then()
+            }
         }
-        pendingSpeech = text
-        if (engine == null) {
-            tts = TextToSpeech(getApplication()) { status ->
-                ttsReady = status == TextToSpeech.SUCCESS
-                if (ttsReady) {
-                    tts?.language = Locale.UK
-                    pendingSpeech?.let { tts?.speak(it, TextToSpeech.QUEUE_FLUSH, null, "replicator") }
-                }
-                pendingSpeech = null
+    }
+
+    private fun listVoices() {
+        val all = runCatching { tts?.voices }.getOrNull().orEmpty()
+        _voices.value = all.filter { it.locale.language == "en" && !it.features.orEmpty().contains("notInstalled") }
+            .sortedWith(compareBy({ it.isNetworkConnectionRequired }, { -it.quality }, { it.locale.toLanguageTag() }, { it.name }))
+            .map { v ->
+                val region = v.locale.displayCountry.ifBlank { v.locale.toLanguageTag() }
+                val q = when { v.quality >= 400 -> "very high"; v.quality >= 300 -> "high"; v.quality >= 200 -> "normal"; else -> "low" }
+                VoiceOption(v.name, "$region · ${v.name.substringAfterLast('-').take(10)} · $q" + if (v.isNetworkConnectionRequired) " · online" else "", !v.isNetworkConnectionRequired)
+            }
+    }
+
+    private fun applyVoice() {
+        val engine = tts ?: return
+        if (!ttsReady) return
+        val v = _voiceSettings.value
+        val voice = v.name?.let { n -> runCatching { engine.voices?.firstOrNull { it.name == n } }.getOrNull() }
+        if (voice != null) engine.voice = voice else engine.language = Locale.UK
+        engine.setPitch(v.pitch)
+        engine.setSpeechRate(v.rate)
+    }
+
+    /** Speaks a reply (and shows it) in the computer voice, with its chirp first. */
+    fun speak(text: String, show: Boolean = true) {
+        if (show) say(text)
+        ensureTts {
+            viewModelScope.launch {
+                if (_voiceSettings.value.chirp) { Chirp.computer(); delay(260) }
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "replicator")
             }
         }
     }

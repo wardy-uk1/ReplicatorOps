@@ -23,6 +23,8 @@ object Chirp {
     fun confirm() = play(Tone(880.0, 55), Tone(1320.0, 75))
     fun deny() = play(Tone(520.0, 90), Tone(390.0, 120))
     fun alert() = play(Tone(1000.0, 110), Tone(0.0, 40), Tone(1000.0, 110))
+    /** "Computer is answering" — two quick rising tones before a spoken reply. */
+    fun computer() = play(Tone(1480.0, 55), Tone(0.0, 20), Tone(1975.0, 85))
 
     private fun play(vararg tones: Tone) {
         if (!enabled) return

@@ -1,5 +1,6 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.runtime.mutableStateOf
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -93,6 +94,26 @@ fun RedAlertSection(vm: AppViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LcarsChip("Online", selected = firstLayer) { vm.setFirstLayerWatch(true) }
             LcarsChip("Offline", selected = !firstLayer) { vm.setFirstLayerWatch(false) }
+        }
+        Spacer(Modifier.height(10.dp))
+        var spotter by remember { mutableStateOf(vm.prefs.failureSpotter) }
+        var sens by remember { mutableStateOf(vm.prefs.failureSensitivity) }
+        LcarsLabel("Failure spotter: checks the camera every 20 s while printing and raises Red Alert with the picture if it looks like spaghetti or a loose part",
+            color = s.accent2, size = 13.sp, maxLines = 4)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LcarsChip("Online", selected = spotter) { spotter = true; vm.prefs.failureSpotter = true }
+            LcarsChip("Offline", selected = !spotter) { spotter = false; vm.prefs.failureSpotter = false }
+        }
+        if (spotter) {
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                dev.vantara.replicatorops.alert.FailureSpotter.Sensitivity.entries.forEach { e ->
+                    LcarsChip(e.label, selected = sens == e.name) { sens = e.name; vm.prefs.failureSensitivity = e.name }
+                }
+            }
+            LcarsLabel("Checked on the phone, no internet. Low gives fewer false alarms, High notices sooner. Needs good lighting.",
+                color = s.hint, size = 11.sp, maxLines = 3)
         }
         Spacer(Modifier.height(8.dp))
         LcarsReadout("Notifications", if (allowed) "Allowed" else "Blocked", valueColor = if (allowed) s.accent else s.alert)

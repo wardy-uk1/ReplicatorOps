@@ -25,6 +25,7 @@ import dev.vantara.replicatorops.data.Prefs
 import dev.vantara.replicatorops.data.ReplicationQueue
 import dev.vantara.replicatorops.widget.ReplicatorWidget
 import dev.vantara.replicatorops.ui.screens.cameraSnapshot
+import kotlinx.coroutines.isActive
 import dev.vantara.replicatorops.widget.WidgetData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +92,7 @@ class RedAlertService : Service() {
                 }
             }
             watching = true
+            scope.launch { spotFailures() }
             scope.launch {
                 var prev: PrinterState? = null
                 var layerShotTaken = false
@@ -214,6 +216,54 @@ class RedAlertService : Service() {
         NotificationManagerCompat.from(this).notify(ALERT_ID, n)
     }
 
+    /** Failure spotter: a camera snapshot every 20 s while printing, checked on the phone. */
+    private suspend fun spotFailures() {
+        val spotter = FailureSpotter()
+        var file: String? = null
+        var alarmed = false
+        while (scope.isActive) {
+            kotlinx.coroutines.delay(20_000)
+            val prefs = Prefs(this)
+            val p = client.state.value
+            if (!prefs.failureSpotter || !p.ready || !p.isPrinting) { if (!p.isPaused) { spotter.reset(); alarmed = false }; continue }
+            if (p.filename != file) { file = p.filename; spotter.reset(); alarmed = false }
+            // Wait for a few layers: the first ones are thin and the nozzle is busy close to the camera.
+            val layer = p.currentLayer ?: (if ((p.position.getOrNull(2) ?: 0.0) > 1.0) 4 else 0)
+            if (layer < 3 || alarmed) continue
+            spotter.sensitivity = FailureSpotter.Sensitivity.entries.firstOrNull { it.name == prefs.failureSensitivity } ?: FailureSpotter.Sensitivity.MEDIUM
+            val key = prefs.apiKey.ifBlank { null }
+            val url = runCatching { client.webcamSnapshotUrl() }.getOrNull() ?: continue
+            val image = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { cameraSnapshot(http, url, key) } ?: continue
+            val small = android.graphics.Bitmap.createScaledBitmap(image, 96, 72, true)
+            val px = IntArray(96 * 72).also { small.getPixels(it, 0, 96, 0, 0, 96, 72) }
+            val lum = IntArray(px.size) { i -> val c = px[i]; ((c shr 16 and 0xFF) * 3 + (c shr 8 and 0xFF) * 6 + (c and 0xFF)) / 10 }
+            if (spotter.look(lum, 96, 72).alarm) {
+                alarmed = true
+                postSpotted(p, image)
+            }
+        }
+    }
+
+    private fun postSpotted(p: PrinterState, image: android.graphics.Bitmap) {
+        if (!canNotify()) return
+        val name = p.filename?.substringAfterLast('/')?.substringBeforeLast('.') ?: "Print"
+        val text = "The camera picture of $name suddenly looks messy: possible spaghetti or a part come loose. Check it and pause if needed."
+        val n = NotificationCompat.Builder(this, CHANNEL_RED)
+            .setSmallIcon(NotificationIcon.of(Prefs(this).notificationIcon).res)
+            .setContentTitle("Red Alert: possible print failure")
+            .setContentText(text)
+            .setLargeIcon(image)
+            .setStyle(NotificationCompat.BigPictureStyle().bigPicture(image).bigLargeIcon(null as android.graphics.Bitmap?).setSummaryText(text))
+            .setContentIntent(openApp())
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setColor(0xFFDD4444.toInt())
+            .addAction(0, "Pause", selfAction(ACTION_PAUSE, 5))
+            .build()
+        NotificationManagerCompat.from(this).notify(SPOTTER_ID, n)
+    }
+
     private val monitor = AlertMonitor()
     private var lastCondition: String? = null
 
@@ -276,6 +326,7 @@ class RedAlertService : Service() {
         private const val ALERT_ID = 1702
         private const val YELLOW_ID = 1704
         private const val DOUBLE_ID = 1705
+        private const val SPOTTER_ID = 1706
         const val CHANNEL_YELLOW = "yellow_alert"
         const val CHANNEL_DOUBLE_RED = "double_red_alert"
         private const val ACTION_PAUSE = "dev.vantara.replicatorops.PAUSE"

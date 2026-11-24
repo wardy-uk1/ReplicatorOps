@@ -1,5 +1,7 @@
 package dev.vantara.replicatorops.ui.screens
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.LaunchedEffect
 import dev.vantara.replicatorops.ui.lcars.Chirp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
@@ -103,6 +105,8 @@ fun ConfigScreen(vm: AppViewModel) {
                 }
             }
         }
+
+        ComputerVoiceSection(vm)
 
         LcarsSectionHeader("Sensor sweep", color = s.nav[0])
         val sweep by vm.sweep.collectAsState()
@@ -308,4 +312,63 @@ private fun PrinterDialog(existing: PrinterProfile?, onSave: (String, String, St
         },
         dismissButton = { LcarsButton("Cancel", color = s.frameAlt) { onDismiss() } },
     )
+}
+
+
+/** Computer voice: which of the phone's voices speaks replies, its pitch and pace, and the chirp. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ComputerVoiceSection(vm: AppViewModel) {
+    val s = LocalLcars.current
+    val v by vm.voiceSettings.collectAsState()
+    val voices by vm.voices.collectAsState()
+    var picking by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { vm.loadVoices() }
+    LcarsSectionHeader("Computer voice", color = s.nav[1])
+    LcarsLabel("How the computer speaks replies to voice and typed commands.", color = s.hint, size = 12.sp, maxLines = 2)
+    val current = voices.firstOrNull { it.name == v.name }?.label ?: "Phone's default (British English)"
+    LcarsReadout("Voice", current)
+    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LcarsButton("Choose voice", color = s.nav[1], height = 34.dp) { picking = true }
+        LcarsButton("Hear it", color = s.accent, height = 34.dp) { vm.previewVoice() }
+    }
+    LcarsLabel("Pitch", color = s.accent2, size = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(0.82f to "Lower", 0.92f to "Computer", 1.0f to "Natural").forEach { (p, l) ->
+            LcarsChip(l, selected = kotlin.math.abs(v.pitch - p) < 0.01f) { vm.setVoicePitch(p) }
+        }
+    }
+    LcarsLabel("Pace", color = s.accent2, size = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(0.82f to "Measured", 0.9f to "Computer", 1.0f to "Natural").forEach { (r, l) ->
+            LcarsChip(l, selected = kotlin.math.abs(v.rate - r) < 0.01f) { vm.setVoiceRate(r) }
+        }
+    }
+    LcarsLabel("Chirp before replies", color = s.accent2, size = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LcarsChip("On", selected = v.chirp) { vm.setVoiceChirp(true) }
+        LcarsChip("Off", selected = !v.chirp) { vm.setVoiceChirp(false) }
+    }
+    if (picking) {
+        AlertDialog(
+            onDismissRequest = { picking = false },
+            containerColor = Color.Black,
+            modifier = Modifier.border(2.dp, s.nav[1], RoundedCornerShape(24.dp)),
+            title = { LcarsLabel("Choose voice", color = s.nav[1], size = 20.sp, bold = true) },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    if (voices.isEmpty()) LcarsLabel("No English voices found. Install Speech Services by Google from the Play Store for more voices.",
+                        color = s.hint, size = 13.sp, maxLines = 4)
+                    LcarsLabel("Tap to hear and choose. Download more voices in Android Settings → Text-to-speech.", color = s.hint, size = 12.sp, maxLines = 3)
+                    Spacer(Modifier.height(6.dp))
+                    LcarsChip("Phone's default", selected = v.name == null) { vm.setVoice(null); vm.previewVoice() }
+                    voices.forEach { o ->
+                        Spacer(Modifier.height(6.dp))
+                        LcarsChip(o.label, selected = v.name == o.name) { vm.setVoice(o.name); vm.previewVoice() }
+                    }
+                }
+            },
+            confirmButton = { LcarsButton("Done", color = s.nav[1]) { picking = false } },
+        )
+    }
 }
