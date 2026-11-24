@@ -1,6 +1,8 @@
 # Replicator Ops
 
-**[Download the latest APK](../../releases/latest)**
+**[Download the latest APK](../../releases/latest)** · **[Try the Beta](../../releases?q=beta&expanded=true)**
+
+> **Replicator Ops Beta** gets new features first. It installs as a separate app next to the normal one, and updates itself from inside the app with Starbase Uplink. Download the newest `ReplicatorOps-Beta-….apk` from the top of the Beta list.
 
 An open-source, LCARS-styled Android app for controlling QIDI (and other Klipper/Moonraker) 3D printers. It's a clean-room alternative to QIDI Maker: it talks straight to the printer's **Moonraker** API over your LAN or Tailscale, with no account or cloud needed.
 
