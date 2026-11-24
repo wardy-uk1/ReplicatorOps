@@ -167,6 +167,7 @@ object CuraGcode {
                 var top = true
                 var changing: Int? = null
                 var lastZ = 0.0
+                var currentTool = initialTool
                 fun endTop(generated: String?) {
                     top = false
                     header.forEach { w.write(it); w.write("\n") }
@@ -196,6 +197,7 @@ object CuraGcode {
                             val from = tc.tools.getOrElse(changing!!) { changing!! }
                             val to = tc.tools.getOrElse(toE) { toE }
                             if (from != to) toolChange(from, to, lastZ, tc).forEach { w.write(it); w.write("\n") }
+                            currentTool = to
                             changing = null
                         }
                         continue
@@ -204,6 +206,7 @@ object CuraGcode {
                         line.startsWith(TC_FROM) -> changing = line.removePrefix(TC_FROM).trim().toIntOrNull() ?: 0
                         line.startsWith(TC_TO) -> Unit  // the first filament: chosen in the start G-code
                         line == INITIAL_TOOL_MARKER -> w.write("T$initialTool\n")
+                        line == UNLOAD_MARKER -> w.write("UNLOAD_FILAMENT T=$currentTool\n")
                         BARE_TOOL.matches(line) -> Unit  // CuraEngine's own tool selects: the Box routine does that
                         line == TOTAL_LAYER_MARKER -> w.write("SET_PRINT_STATS_INFO TOTAL_LAYER=$layers\n")
                         line.startsWith(";LAYER:") -> {

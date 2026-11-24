@@ -271,8 +271,17 @@ private fun Q2C_START(firstLayer: Double, maxFlow: Double, temp: Int, bedTemp: I
     ) + purge("1", 8) + purge("2.5", 10) + listOf("G1 Z1 F600", "G92 E0")
 }
 
+/** Replaced with "UNLOAD_FILAMENT T=<last tool>" when the G-code is finished. */
+const val UNLOAD_MARKER = "ROPS_UNLOAD_FILAMENT"
+
+/**
+ * QIDI Studio's Q2C end G-code. SET_PRINT_MAIN_STATUS and PRINT_END tell the printer's
+ * screen the print finished; without them it reports "print cancelled".
+ */
 private val Q2C_END = listOf(
+    "SET_PRINT_MAIN_STATUS MAIN_STATUS=print_end",
     "DISABLE_BOX_HEATER",
+    "M141 S0",
     "M140 S0",
     "BUFFER_MONITORING ENABLE=0",
     "DISABLE_ALL_SENSOR",
@@ -280,8 +289,9 @@ private val Q2C_END = listOf(
     "G91",
     "G0 Z3 F600",
     "G90",
-    "UNLOAD_FILAMENT T=0",
+    UNLOAD_MARKER,
     "G0 Y270 F12000",
     "G0 X90 Y270 F12000",
     "M104 S0",
+    "PRINT_END",
 )

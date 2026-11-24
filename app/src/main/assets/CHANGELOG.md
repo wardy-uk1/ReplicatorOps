@@ -4,6 +4,10 @@ Each entry is shown once in the app after updating, and becomes the GitHub relea
 Add a new entry as `## <version>` followed by `- ` bullet lines. The stardate (release date, yyyyDD.MM)
 is stamped automatically when GitHub publishes the release.
 
+## 2.2.0-beta.5
+- Prints sliced on the phone now end the way QIDI Studio's do (print-end status and PRINT_END), so the printer's screen says the print finished instead of "print cancelled"
+- At the end of a multi-colour print, the filament in use is the one unloaded
+
 ## 2.2.0-beta.4 · Stardate 202624.11
 - Files sliced on the phone are now sent as a QIDI ".gcode.3mf", the way QIDI Studio sends them, so the printer's own screen shows the picture, print time and weight
 - The printer's "Match filament" screen now sees each filament's type and colour and matches it to the Box, instead of saying "external filament"

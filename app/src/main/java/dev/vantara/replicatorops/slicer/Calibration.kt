@@ -136,7 +136,9 @@ object Calibration {
 
         fun end() {
             raw("M107")
-            s.curaOverrides()["machine_end_gcode"].toString().lines().forEach(::raw)
+            s.curaOverrides()["machine_end_gcode"].toString().lines()
+                .map { if (it == UNLOAD_MARKER) "UNLOAD_FILAMENT T=0" else it }
+                .forEach(::raw)
         }
 
         fun layer(i: Int, height: Double) {
